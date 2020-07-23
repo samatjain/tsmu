@@ -171,6 +171,13 @@ class PercentDone(enum.Enum):
         elif pdt is PercentDone.incomplete and percent_done != 1:
             return True
 
+    @staticmethod
+    def ConvertForClick(ctx: click.Context, param: str, value: str):
+        if value not in PercentDone.__members__:
+            print("error")
+        if value is not None:
+            return PercentDone[value]
+
 
 class TorrentStatus(enum.Enum):
     """Not implemented."""
@@ -198,14 +205,6 @@ def _filter(
                                         pygments.formatters.terminal.TerminalFormatter()))
 
 
-def ConvertComplete(ctx: click.Context, param: str, value: str):
-    if value not in PercentDone.__members__:
-        print("error")
-    if value is not None:
-        return PercentDone[value]
-
-
-
 @click.group()
 def cli() -> None:
     pass
@@ -216,7 +215,7 @@ def cli() -> None:
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
                type=click.Choice(PercentDone.__members__.keys()),
-               callback=ConvertComplete)
+               callback=PercentDone.ConvertForClick)
 def dump_cli(
     ids: bool = False,
     include_files: bool = False,
@@ -244,7 +243,7 @@ def dump_cli(
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
                type=click.Choice(PercentDone.__members__.keys()),
-               callback=ConvertComplete)
+               callback=PercentDone.ConvertForClick)
 def fn(
     filter_string: str,
     ids: bool = False,
@@ -274,7 +273,7 @@ def fn(
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
                type=click.Choice(PercentDone.__members__.keys()),
-               callback=ConvertComplete)
+               callback=PercentDone.ConvertForClick)
 def fp(
     filter_string: str,
     ids: bool = False,
