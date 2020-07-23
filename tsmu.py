@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-from pathlib import Path
+
+from __future__ import annotations
+
+import enum
+import functools
 import json
 import sys
-
+from pathlib import Path
 from pprint import pprint
 from shlex import quote as shquote
-from typing import Final, List
+from typing import Callable, Final, List
 
 import click
 import pygments, pygments.lexers, pygments.formatters.terminal
@@ -92,7 +96,7 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
             for item in subitems:
                 totallength += len(item)
             totallength += len(subitems)-1     # spaces between items
-            if (totallength <= maxlinelength): 
+            if (totallength <= maxlinelength):
                 str = ""
                 for item in subitems:
                     str += item + " "      # add space between items, comma is already there
@@ -107,7 +111,7 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
                 items.append(opening + subitems[0] + closing)
             else:
                 can_concat = False
-                
+
         if (not can_concat):
             items.append(opening)       # opening brackets
             items.append(subitems)      # Append children to parent list as a nested list
@@ -120,14 +124,14 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
         strobj += basictype2str(obj)
         if not islast: strobj += ","
         items.append(strobj)
-    
+
     return items, can_concat
 
 
 def basictype2str(obj):
     if isinstance (obj, str):
         strobj = "\"" + str(obj) + "\""
-    elif isinstance(obj, bool): 
+    elif isinstance(obj, bool):
         strobj = { True: "true", False: "false" }[obj]
     else:
         strobj = str(obj)
@@ -139,7 +143,7 @@ def indentitems(items, indent, indentcurrent):
     res = ""
     indentstr = " " * indentcurrent
     for item in items:
-        if (isinstance(item, list)): 
+        if (isinstance(item, list)):
             res += indentitems(item, indent, indentcurrent + indent)
         else:
             res += indentstr + item + "\n"
@@ -150,6 +154,57 @@ def indentitems(items, indent, indentcurrent):
 
 BASE_ARGUMENTS: Final[List[str]] = ['id', 'name', 'downloadDir', 'status', 'percentDone']
 
+class PercentDone(enum.Enum):
+    unspecified = enum.auto()  # anything
+    notstarted = enum.auto()   # 0
+    done = enum.auto()         # 100
+    incomplete = enum.auto()   # 0 and <100
+
+    @staticmethod
+    def predicate(pdt: PercentDone, percent_done: float) -> bool:
+        if pdt is PercentDone.unspecified:
+            return True
+        elif pdt is PercentDone.done and percent_done == 1:
+            return True
+        elif pdt is PercentDone.notstarted and percent_done == 0:
+            return True
+        elif pdt is PercentDone.incomplete and percent_done != 1:
+            return True
+
+
+class TorrentStatus(enum.Enum):
+    """Not implemented."""
+    stopped = enum.auto()
+    seeding = enum.auto()
+
+
+FilterPredicate = Callable[[transmissionrpc.Torrent], bool]
+
+
+def _filter(
+    filter_predicate: FilterPredicate,
+    include_files: bool = False,
+    ids: bool = False
+):
+    tc = ConnectToTransmission()
+    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files) if filter_predicate(t)]
+    if ids:
+        ids_str = [str(t['id']) for t in merged]
+        click.echo(','.join(ids_str))
+    else:  # full JSON
+        jd = prettyjson(merged, indent=2)
+        click.echo(pygments.highlight(jd,
+                                        pygments.lexers.JsonLexer(),
+                                        pygments.formatters.terminal.TerminalFormatter()))
+
+
+def ConvertComplete(ctx: click.Context, param: str, value: str):
+    if value not in PercentDone.__members__:
+        print("error")
+    if value is not None:
+        return PercentDone[value]
+
+
 
 @click.group()
 def cli() -> None:
@@ -157,50 +212,91 @@ def cli() -> None:
 
 
 @cli.command("dump")
-def dump_cli():
-    tc = ConnectToTransmission()
-    merged = [t for t in Dump(tc, include_files=True)]
-    jd = json.dumps(merged, indent=2)
-    click.echo(pygments.highlight(jd,
-                                  pygments.lexers.JsonLexer(),
-                                  pygments.formatters.terminal.TerminalFormatter()))
+@click.option("--ids", is_flag=True, help="Only print IDs")
+@click.option("--include-files", is_flag=True)
+@click.option("-c", "--complete", help="", default="unspecified",
+               type=click.Choice(PercentDone.__members__.keys()),
+               callback=ConvertComplete)
+def dump_cli(
+    ids: bool = False,
+    include_files: bool = False,
+    complete: PercentDone = PercentDone.unspecified
+):
+    """Dump. Filters allowed."""
+
+    def DumpFilterPredicate(
+        t: transmissionrpc.torrent,
+        pd: PercentDone = PercentDone.notstarted,
+    ) -> bool:
+        percent_done = t['percentDone']
+        if PercentDone.predicate(pd, percent_done):
+            return True
+
+        return False
+
+    fp = functools.partial(DumpFilterPredicate, pd=complete)
+    _filter(fp, include_files, ids)
 
 
 @cli.command("fn")
 @click.argument("filter_string")
-@click.option("--ids", is_flag=True)
+@click.option("--ids", is_flag=True, help="Only print IDs")
 @click.option("--include-files", is_flag=True)
-def fn(filter_string: str, ids: bool = False, include_files: bool = False, help="Only print IDs"):
+@click.option("-c", "--complete", help="", default="unspecified",
+               type=click.Choice(PercentDone.__members__.keys()),
+               callback=ConvertComplete)
+def fn(
+    filter_string: str,
+    ids: bool = False,
+    include_files: bool = False,
+    complete: PercentDone = PercentDone.unspecified
+):
     """Filter by name. Case insensitive."""
-    tc = ConnectToTransmission()
-    filter_string = filter_string.lower()
-    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files) if filter_string in t['name'].lower()]
-    if ids:
-        ids_str = [str(t['id']) for t in merged]
-        click.echo(','.join(ids_str))
-    else:  # full JSON
-        jd = prettyjson(merged, indent=2)
-        click.echo(pygments.highlight(jd,
-                                      pygments.lexers.JsonLexer(),
-                                      pygments.formatters.terminal.TerminalFormatter()))
+
+    def TorrentNameFilterPredicate(
+        s: str,
+        t: transmissionrpc.torrent,
+        pd: PercentDone = PercentDone.notstarted,
+    ) -> bool:
+        percent_done = t['percentDone']
+        if s.lower() in t['name'].lower() and PercentDone.predicate(pd, percent_done):
+            return True
+
+        return False
+
+    fp = functools.partial(TorrentNameFilterPredicate, filter_string, pd=complete)
+    _filter(fp, include_files, ids)
 
 
 @cli.command("fp")
 @click.argument("filter_string")
 @click.option("--ids", is_flag=True)
-def fp(filter_string: str, ids: bool = False, help="Only print IDs"):
+@click.option("--include-files", is_flag=True)
+@click.option("-c", "--complete", help="", default="unspecified",
+               type=click.Choice(PercentDone.__members__.keys()),
+               callback=ConvertComplete)
+def fp(
+    filter_string: str,
+    ids: bool = False,
+    include_files: bool = False,
+    complete: PercentDone = PercentDone.unspecified
+):
     """Filter by path. Case sensitive."""
-    tc = ConnectToTransmission()
-    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=None) if filter_string in t['location']]
-    jd = prettyjson(merged, indent=2)
-    if ids:
-        ids_str = [str(t['id']) for t in merged]
-        click.echo(','.join(ids_str))
-    else:  # full JSON
-        jd = prettyjson(merged, indent=2)
-        click.echo(pygments.highlight(jd,
-                                      pygments.lexers.JsonLexer(),
-                                      pygments.formatters.terminal.TerminalFormatter()))
+
+    def TorrentPathFilterPredicate(
+        s: str,
+        t: transmissionrpc.torrent,
+        pd: PercentDone = PercentDone.notstarted,
+    ) -> bool:
+        percent_done = t['percentDone']
+        if s in t['location'] and PercentDone.predicate(pd, percent_done):
+            return True
+
+        return False
+
+    fp = functools.partial(TorrentPathFilterPredicate, filter_string, pd=complete)
+    _filter(fp, include_files, ids)
+
 
 @cli.command("ffl")
 def ffl_cli():
