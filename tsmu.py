@@ -161,10 +161,16 @@ def indentitems(items, indent, indentcurrent):
 BASE_ARGUMENTS: Final[List[str]] = ['id', 'name', 'downloadDir', 'status', 'percentDone']
 
 
-class PercentDone(enum.Enum):
+class InterpretedPercentDone(enum.Enum):
     """Map a percentage to how we want to interpret that percentage.
 
     unspecified is for filtering; it means we don't care about the percentage.
+    For the rest:
+
+    • unspecified: for filtering, means don't care about interpreting
+    • notstarted: percentDone=0
+    • done: percentDone=100
+    • incomplete: percentDone=0 and percentDone<100
     """
 
     unspecified = enum.auto()  # anything
@@ -173,24 +179,24 @@ class PercentDone(enum.Enum):
     incomplete = enum.auto()   # 0 and <100
 
     @staticmethod
-    def predicate(pdt: PercentDone, percent_done: float) -> bool:
+    def predicate(pdt: InterpretedPercentDone, percent_done: float) -> bool:
         """Does percent_done meet the criteria of pdt?"""
-        if pdt is PercentDone.unspecified:
+        if pdt is InterpretedPercentDone.unspecified:
             return True
-        elif pdt is PercentDone.done and percent_done == 1:
+        elif pdt is InterpretedPercentDone.done and percent_done == 1:
             return True
-        elif pdt is PercentDone.notstarted and percent_done == 0:
+        elif pdt is InterpretedPercentDone.notstarted and percent_done == 0:
             return True
-        elif pdt is PercentDone.incomplete and percent_done != 1:
+        elif pdt is InterpretedPercentDone.incomplete and percent_done != 1:
             return True
 
     @staticmethod
     def ConvertForClick(ctx: click.Context, param: str, value: str):
-        if value not in PercentDone.__members__:
+        if value not in InterpretedPercentDone.__members__:
             print("error")
             return None
         if value is not None:
-            return PercentDone[value]
+            return InterpretedPercentDone[value]
 
 
 class TorrentStatus(enum.Enum):
@@ -242,21 +248,21 @@ def cli() -> None:
 @click.option("--ids", is_flag=True, help="Only print IDs")
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(PercentDone.__members__.keys()),
-               callback=PercentDone.ConvertForClick)
+               type=click.Choice(InterpretedPercentDone.__members__.keys()),
+               callback=InterpretedPercentDone.ConvertForClick)
 def dump_cli(
     ids: bool = False,
     include_files: bool = False,
-    complete: PercentDone = PercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
 ):
     """Dump all torrents. Filters allowed."""
     def DumpFilterPredicate(
         t: transmissionrpc.torrent,
-        pd: PercentDone = PercentDone.notstarted,
+        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for Dump."""
         percent_done = t['percentDone']
-        if PercentDone.predicate(pd, percent_done):
+        if InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
@@ -270,24 +276,24 @@ def dump_cli(
 @click.option("--ids", is_flag=True, help="Only print IDs")
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(PercentDone.__members__.keys()),
-               callback=PercentDone.ConvertForClick)
+               type=click.Choice(InterpretedPercentDone.__members__.keys()),
+               callback=InterpretedPercentDone.ConvertForClick)
 def fn(
     filter_string: str,
     ids: bool = False,
     include_files: bool = False,
-    complete: PercentDone = PercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
 ) -> None:
     """Filter by name. Case insensitive."""
 
     def TorrentNameFilterPredicate(
         s: str,
         t: transmissionrpc.torrent,
-        pd: PercentDone = PercentDone.notstarted,
+        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by name."""
         percent_done = t['percentDone']
-        if s.lower() in t['name'].lower() and PercentDone.predicate(pd, percent_done):
+        if s.lower() in t['name'].lower() and InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
@@ -301,24 +307,24 @@ def fn(
 @click.option("--ids", is_flag=True)
 @click.option("--include-files", is_flag=True)
 @click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(PercentDone.__members__.keys()),
-               callback=PercentDone.ConvertForClick)
+               type=click.Choice(InterpretedPercentDone.__members__.keys()),
+               callback=InterpretedPercentDone.ConvertForClick)
 def fp(
     filter_string: str,
     ids: bool = False,
     include_files: bool = False,
-    complete: PercentDone = PercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
 ) -> None:
     """Filter by path. Case sensitive."""
 
     def TorrentPathFilterPredicate(
         s: str,
         t: transmissionrpc.torrent,
-        pd: PercentDone = PercentDone.notstarted,
+        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by path."""
         percent_done = t['percentDone']
-        if s in t['location'] and PercentDone.predicate(pd, percent_done):
+        if s in t['location'] and InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
