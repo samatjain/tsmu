@@ -182,9 +182,21 @@ class PercentDone(enum.Enum):
 
 class TorrentStatus(enum.Enum):
     """Not implemented."""
+
+    check_pending = enum.auto()
+    checking = enum.auto()
+    downloading = enum.auto()
     stopped = enum.auto()
     seeding = enum.auto()
 
+    @staticmethod
+    def ConvertFromStr(s: str):
+        if s == "check pending":
+            return TorrentStatus.check_pending
+        if s not in TorrentStatus.__members__:
+            print("error")
+            return None
+        return TorrentStatus[s]
 
 FilterPredicate = Callable[[transmissionrpc.Torrent], bool]
 
