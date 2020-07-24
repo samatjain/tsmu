@@ -7,9 +7,9 @@ import functools
 import json
 import sys
 from pathlib import Path
-from pprint import pprint
+from pprint import pprint  # NOQA
 from shlex import quote as shquote
-from typing import Callable, Final, List
+from typing import Any, Callable, Dict, Final, Generator, List
 
 import click
 import pygments, pygments.lexers, pygments.formatters.terminal
@@ -27,7 +27,12 @@ def ConnectToTransmission() -> transmissionrpc.Client:
     return tc
 
 
-def Dump(tc: transmissionrpc.Client, arguments=None, include_files: bool = False):
+TorrentInformation = Dict[str, Any]
+
+
+def Dump(
+    tc: transmissionrpc.Client, arguments=None, include_files: bool = False
+) -> Generator[TorrentInformation, None, None]:
     if arguments and include_files:
         arguments += ['files', 'priorities', 'wanted']
     for t in tc.get_torrents(arguments=arguments):
@@ -155,7 +160,13 @@ def indentitems(items, indent, indentcurrent):
 
 BASE_ARGUMENTS: Final[List[str]] = ['id', 'name', 'downloadDir', 'status', 'percentDone']
 
+
 class PercentDone(enum.Enum):
+    """Map a percentage to how we want to interpret that percentage.
+
+    unspecified is for filtering; it means we don't care about the percentage.
+    """
+
     unspecified = enum.auto()  # anything
     notstarted = enum.auto()   # 0
     done = enum.auto()         # 100
@@ -163,6 +174,7 @@ class PercentDone(enum.Enum):
 
     @staticmethod
     def predicate(pdt: PercentDone, percent_done: float) -> bool:
+        """Does percent_done meet the criteria of pdt?"""
         if pdt is PercentDone.unspecified:
             return True
         elif pdt is PercentDone.done and percent_done == 1:
@@ -176,6 +188,7 @@ class PercentDone(enum.Enum):
     def ConvertForClick(ctx: click.Context, param: str, value: str):
         if value not in PercentDone.__members__:
             print("error")
+            return None
         if value is not None:
             return PercentDone[value]
 
@@ -198,6 +211,8 @@ class TorrentStatus(enum.Enum):
             return None
         return TorrentStatus[s]
 
+
+# Given a torrent, return true/false about it
 FilterPredicate = Callable[[transmissionrpc.Torrent], bool]
 
 
@@ -205,7 +220,7 @@ def _filter(
     filter_predicate: FilterPredicate,
     include_files: bool = False,
     ids: bool = False
-):
+) -> None:
     tc = ConnectToTransmission()
     merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files) if filter_predicate(t)]
     if ids:
@@ -234,12 +249,12 @@ def dump_cli(
     include_files: bool = False,
     complete: PercentDone = PercentDone.unspecified
 ):
-    """Dump. Filters allowed."""
-
+    """Dump all torrents. Filters allowed."""
     def DumpFilterPredicate(
         t: transmissionrpc.torrent,
         pd: PercentDone = PercentDone.notstarted,
     ) -> bool:
+        """FilterPredicate for Dump."""
         percent_done = t['percentDone']
         if PercentDone.predicate(pd, percent_done):
             return True
@@ -262,7 +277,7 @@ def fn(
     ids: bool = False,
     include_files: bool = False,
     complete: PercentDone = PercentDone.unspecified
-):
+) -> None:
     """Filter by name. Case insensitive."""
 
     def TorrentNameFilterPredicate(
@@ -270,6 +285,7 @@ def fn(
         t: transmissionrpc.torrent,
         pd: PercentDone = PercentDone.notstarted,
     ) -> bool:
+        """FilterPredicate for filter by name."""
         percent_done = t['percentDone']
         if s.lower() in t['name'].lower() and PercentDone.predicate(pd, percent_done):
             return True
@@ -292,7 +308,7 @@ def fp(
     ids: bool = False,
     include_files: bool = False,
     complete: PercentDone = PercentDone.unspecified
-):
+) -> None:
     """Filter by path. Case sensitive."""
 
     def TorrentPathFilterPredicate(
@@ -300,6 +316,7 @@ def fp(
         t: transmissionrpc.torrent,
         pd: PercentDone = PercentDone.notstarted,
     ) -> bool:
+        """FilterPredicate for filter by path."""
         percent_done = t['percentDone']
         if s in t['location'] and PercentDone.predicate(pd, percent_done):
             return True
@@ -311,7 +328,7 @@ def fp(
 
 
 @cli.command("ffl")
-def ffl_cli():
+def ffl_cli() -> None:
     """First field as list."""
 
     column: List[int] = []
@@ -327,7 +344,7 @@ def ffl_cli():
 
 @cli.command("magnets-here")
 @click.argument('magnets_file', type=click.File('r'))
-def magnets_here_cli(magnets_file):
+def magnets_here_cli(magnets_file) -> None:
     """Add text file full of magnet links to current directory."""
     for line in magnets_file.readlines():
         if not line:
