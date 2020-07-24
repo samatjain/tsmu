@@ -18,7 +18,8 @@ import transmissionrpc, transmissionrpc.utils
 
 
 def ConnectToTransmission() -> transmissionrpc.Client:
-    settings_file_path = Path('~/.config/transmission-daemon/settings.json').expanduser().resolve()
+    """Connect to transmission using current user's settings."""
+    settings_file_path = Path(click.get_app_dir("transmission-daemon"), "settings.json").expanduser().resolve()
     settings = json.load(open(settings_file_path))
 
     host, port, username, password = 'localhost', settings['rpc-port'], None, None
