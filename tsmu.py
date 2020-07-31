@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import enum
 import functools
+import io
 import json
 import sys
 from pathlib import Path
@@ -189,9 +190,10 @@ class InterpretedPercentDone(enum.Enum):
             return True
         elif pdt is InterpretedPercentDone.incomplete and percent_done != 1:
             return True
+        return False
 
     @staticmethod
-    def ConvertForClick(ctx: click.Context, param: str, value: str):
+    def ConvertForClick(ctx: click.Context, param: click.Parameter, value: str) -> InterpretedPercentDone:
         if value not in InterpretedPercentDone.__members__:
             print("error")
             return None
@@ -209,7 +211,8 @@ class TorrentStatus(enum.Enum):
     seeding = enum.auto()
 
     @staticmethod
-    def ConvertFromStr(s: str):
+    def deserialize(s: str) -> TorrentStatus:
+        # handle space in "check pending"
         if s == "check pending":
             return TorrentStatus.check_pending
         if s not in TorrentStatus.__members__:
@@ -219,7 +222,7 @@ class TorrentStatus(enum.Enum):
 
 
 # Given a torrent, return true/false about it
-FilterPredicate = Callable[[transmissionrpc.Torrent], bool]
+FilterPredicate = Callable[[TorrentInformation], bool]
 
 
 def _filter(
@@ -228,15 +231,16 @@ def _filter(
     ids: bool = False
 ) -> None:
     tc = ConnectToTransmission()
-    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files) if filter_predicate(t)]
+    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files)
+              if filter_predicate(t)]
     if ids:
         ids_str = [str(t['id']) for t in merged]
         click.echo(','.join(ids_str))
     else:  # full JSON
         jd = prettyjson(merged, indent=2)
         click.echo(pygments.highlight(jd,
-                                        pygments.lexers.JsonLexer(),
-                                        pygments.formatters.terminal.TerminalFormatter()))
+                                      pygments.lexers.JsonLexer(),
+                                      pygments.formatters.terminal.TerminalFormatter()))
 
 
 @click.group()
@@ -254,7 +258,7 @@ def dump_cli(
     ids: bool = False,
     include_files: bool = False,
     complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
-):
+) -> None:
     """Dump all torrents. Filters allowed."""
     def DumpFilterPredicate(
         t: transmissionrpc.torrent,
@@ -350,7 +354,7 @@ def ffl_cli() -> None:
 
 @cli.command("magnets-here")
 @click.argument('magnets_file', type=click.File('r'))
-def magnets_here_cli(magnets_file) -> None:
+def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
     """Add text file full of magnet links to current directory."""
     for line in magnets_file.readlines():
         if not line:
@@ -364,7 +368,7 @@ def magnets_here_cli(magnets_file) -> None:
 
 
 @cli.command("test")
-def test_cli():
+def test_cli() -> None:
     items = '''
     Chaka_Khan-Hello_Happiness-SINGLE-WEB-2019-ENRAGED
     German_TOP100_Single_Charts_14_01_2019-MCG
