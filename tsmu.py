@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from pprint import pprint  # NOQA
 from shlex import quote as shquote
-from typing import Any, Callable, Dict, Final, Generator, List
+from typing import Any, Callable, Dict, Final, Generator, List, Optional
 
 import click
 import pygments, pygments.lexers, pygments.formatters.terminal
@@ -20,7 +20,9 @@ import transmissionrpc, transmissionrpc.utils
 
 def ConnectToTransmission() -> transmissionrpc.Client:
     """Connect to transmission using current user's settings."""
-    settings_file_path = Path(click.get_app_dir("transmission-daemon"), "settings.json").expanduser().resolve()
+    settings_file_path = Path(
+        click.get_app_dir("transmission-daemon"),
+        "settings.json").expanduser().resolve()
     settings = json.load(open(settings_file_path))
 
     host, port, username, password = 'localhost', settings['rpc-port'], None, None
@@ -32,7 +34,7 @@ TorrentInformation = Dict[str, Any]
 
 
 def Dump(
-    tc: transmissionrpc.Client, arguments=None, include_files: bool = False
+    tc: transmissionrpc.Client, arguments: Optional[List[str]] = None, include_files: bool = False
 ) -> Generator[TorrentInformation, None, None]:
     if arguments and include_files:
         arguments += ['files', 'priorities', 'wanted']
@@ -57,6 +59,7 @@ def Dump(
 # from https://github.com/andy-gh/pygrid/blob/master/prettyjson.py
 
 import types
+
 
 def prettyjson(obj, indent=2, maxlinelength=80):
     """Renders JSON content with indentation and line splits/concatenations to fit maxlinelength.
