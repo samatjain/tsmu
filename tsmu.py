@@ -6,6 +6,7 @@ import enum
 import functools
 import io
 import json
+import pathlib
 import sys
 from pathlib import Path
 from pprint import pprint  # NOQA
@@ -368,6 +369,25 @@ def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
         if line[0] == '#':
             continue
         print(f'transmission-remote -w $(pwd) -a "{line}"')
+
+
+@cli.command("incomplete-files")
+@click.argument('torrent_id', type=int)
+@click.option(
+    '--parents',
+    type=int,
+    default=0,
+    help='Number of parent directories to go up. 0 means first parent',
+)
+def incomplete_files_cli(torrent_id: int, parents) -> None:
+    """Print the parent directory of incomplete files."""
+    tc = ConnectToTransmission()
+    files = tc.get_files(torrent_id)[torrent_id]
+    for file_info in files.values():
+        if file_info['size'] != file_info['completed']:
+            p = pathlib.PurePath(file_info['name'])
+            # print(p.parents[parents])
+            print('rm -rf ' + str(p.parents[parents]))
 
 
 @cli.command("test")
