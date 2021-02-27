@@ -21,9 +21,9 @@ import transmissionrpc, transmissionrpc.utils
 
 def ConnectToTransmission() -> transmissionrpc.Client:
     """Connect to transmission using current user's settings."""
-    settings_file_path = Path(
-        click.get_app_dir("transmission-daemon"),
-        "settings.json").expanduser().resolve()
+    settings_file_path = (
+        Path(click.get_app_dir("transmission-daemon"), "settings.json").expanduser().resolve()
+    )
     settings = json.load(open(settings_file_path))
 
     host, port, username, password = 'localhost', settings['rpc-port'], None, None
@@ -50,7 +50,7 @@ def Dump(
             "location": t.downloadDir,
             "status": t.status,
             "percentDone": t.percentDone,
-            "files": files
+            "files": files,
         }
 
 
@@ -73,7 +73,9 @@ def prettyjson(obj, indent=2, maxlinelength=80):
 
 def getsubitems(obj, itemkey, islast, maxlinelength):
     items = []
-    can_concat = True      # assume we can concatenate inner content unless a child node returns an expanded list
+    can_concat = (
+        True  # assume we can concatenate inner content unless a child node returns an expanded list
+    )
 
     isdict = isinstance(obj, dict)
     islist = isinstance(obj, list)
@@ -81,12 +83,21 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
 
     # building json content as a list of strings or child lists
     if isdict or islist or istuple:
-        if isdict: opening, closing, keys = ("{", "}", iter(obj.keys()))
-        elif islist: opening, closing, keys = ("[", "]", range(0, len(obj)))
-        elif istuple: opening, closing, keys = ("[", "]", range(0, len(obj)))    # tuples are converted into json arrays
+        if isdict:
+            opening, closing, keys = ("{", "}", iter(obj.keys()))
+        elif islist:
+            opening, closing, keys = ("[", "]", range(0, len(obj)))
+        elif istuple:
+            opening, closing, keys = (
+                "[",
+                "]",
+                range(0, len(obj)),
+            )  # tuples are converted into json arrays
 
-        if itemkey != "": opening = itemkey + ": " + opening
-        if not islast: closing += ","
+        if itemkey != "":
+            opening = itemkey + ": " + opening
+        if not islast:
+            closing += ","
 
         # Get list of inner tokens as list
         count = 0
@@ -96,54 +107,61 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
             count += 1
             islast_ = count == len(obj)
             itemkey_ = ""
-            if isdict: itemkey_ = basictype2str(k)
-            inner, can_concat_ = getsubitems(obj[k], itemkey_, islast_, maxlinelength)    # inner = (items, indent)
-            subitems.extend(inner)                      # inner can be a string or a list
-            can_concat = can_concat and can_concat_     # if a child couldn't concat, then we are not able either
+            if isdict:
+                itemkey_ = basictype2str(k)
+            inner, can_concat_ = getsubitems(
+                obj[k], itemkey_, islast_, maxlinelength
+            )  # inner = (items, indent)
+            subitems.extend(inner)  # inner can be a string or a list
+            can_concat = (
+                can_concat and can_concat_
+            )  # if a child couldn't concat, then we are not able either
 
         # atttempt to concat subitems if all fit within maxlinelength
-        if (can_concat):
+        if can_concat:
             totallength = 0
             for item in subitems:
                 totallength += len(item)
-            totallength += len(subitems)-1     # spaces between items
-            if (totallength <= maxlinelength):
+            totallength += len(subitems) - 1  # spaces between items
+            if totallength <= maxlinelength:
                 str = ""
                 for item in subitems:
-                    str += item + " "      # add space between items, comma is already there
+                    str += item + " "  # add space between items, comma is already there
                 str = str.strip()
-                subitems = [ str ]         # wrap concatenated content in a new list
+                subitems = [str]  # wrap concatenated content in a new list
             else:
                 can_concat = False
 
         # attempt to concat outer brackets + inner items
-        if (can_concat):
-            if (len(opening) + totallength + len(closing) <= maxlinelength):
+        if can_concat:
+            if len(opening) + totallength + len(closing) <= maxlinelength:
                 items.append(opening + subitems[0] + closing)
             else:
                 can_concat = False
 
-        if (not can_concat):
-            items.append(opening)       # opening brackets
-            items.append(subitems)      # Append children to parent list as a nested list
-            items.append(closing)       # closing brackets
+        if not can_concat:
+            items.append(opening)  # opening brackets
+            items.append(subitems)  # Append children to parent list as a nested list
+            items.append(closing)  # closing brackets
 
     else:
         # basic types
         strobj = itemkey
-        if strobj != "": strobj += ": "
+        if strobj != "":
+            strobj += ": "
         strobj += basictype2str(obj)
-        if not islast: strobj += ","
+        if not islast:
+            strobj += ","
         items.append(strobj)
 
     return items, can_concat
 
 
 def basictype2str(obj):
-    if isinstance (obj, str):
+    if isinstance(obj, str):
         strobj = "\"" + str(obj) + "\""
     elif isinstance(obj, bool):
-        strobj = { True: "true", False: "false" }[obj]
+        strobj = {True: "true", False: "false"}[obj]
     else:
         strobj = str(obj)
     return strobj
@@ -154,11 +172,12 @@ def indentitems(items, indent, indentcurrent):
     res = ""
     indentstr = " " * indentcurrent
     for item in items:
-        if (isinstance(item, list)):
+        if isinstance(item, list):
             res += indentitems(item, indent, indentcurrent + indent)
         else:
             res += indentstr + item + "\n"
     return res
+
 
 ################################################################################
 
@@ -178,10 +197,12 @@ class InterpretedPercentDone(enum.Enum):
     • incomplete: percentDone=0 and percentDone<100
     """
 
+    # fmt: off
     unspecified = enum.auto()  # anything
     notstarted = enum.auto()   # 0
     done = enum.auto()         # 100
     incomplete = enum.auto()   # 0 and <100
+    # fmt: on
 
     @staticmethod
     def predicate(pdt: InterpretedPercentDone, percent_done: float) -> bool:
@@ -197,7 +218,9 @@ class InterpretedPercentDone(enum.Enum):
         return False
 
     @staticmethod
-    def ConvertForClick(ctx: click.Context, param: click.Parameter, value: str) -> InterpretedPercentDone:
+    def ConvertForClick(
+        ctx: click.Context, param: click.Parameter, value: str
+    ) -> InterpretedPercentDone:
         if value not in InterpretedPercentDone.__members__:
             print("error")
             return None
@@ -230,21 +253,24 @@ FilterPredicate = Callable[[TorrentInformation], bool]
 
 
 def _filter(
-    filter_predicate: FilterPredicate,
-    include_files: bool = False,
-    ids: bool = False
+    filter_predicate: FilterPredicate, include_files: bool = False, ids: bool = False
 ) -> None:
     tc = ConnectToTransmission()
-    merged = [t for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files)
-              if filter_predicate(t)]
+    merged = [
+        t
+        for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files)
+        if filter_predicate(t)
+    ]
     if ids:
         ids_str = [str(t['id']) for t in merged]
         click.echo(','.join(ids_str))
     else:  # full JSON
         jd = prettyjson(merged, indent=2)
-        click.echo(pygments.highlight(jd,
-                                      pygments.lexers.JsonLexer(),
-                                      pygments.formatters.terminal.TerminalFormatter()))
+        click.echo(
+            pygments.highlight(
+                jd, pygments.lexers.JsonLexer(), pygments.formatters.terminal.TerminalFormatter()
+            )
+        )
 
 
 @click.group()
@@ -255,18 +281,23 @@ def cli() -> None:
 @cli.command("dump")
 @click.option("--ids", is_flag=True, help="Only print IDs")
 @click.option("--include-files", is_flag=True)
-@click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(InterpretedPercentDone.__members__.keys()),
-               callback=InterpretedPercentDone.ConvertForClick)
+@click.option(
+    "-c",
+    "--complete",
+    help="",
+    default="unspecified",
+    type=click.Choice(InterpretedPercentDone.__members__.keys()),
+    callback=InterpretedPercentDone.ConvertForClick,
+)
 def dump_cli(
     ids: bool = False,
     include_files: bool = False,
-    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified,
 ) -> None:
     """Dump all torrents. Filters allowed."""
+
     def DumpFilterPredicate(
-        t: transmissionrpc.torrent,
-        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
+        t: transmissionrpc.torrent, pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for Dump."""
         percent_done = t['percentDone']
@@ -283,14 +314,19 @@ def dump_cli(
 @click.argument("filter_string")
 @click.option("--ids", is_flag=True, help="Only print IDs")
 @click.option("--include-files", is_flag=True)
-@click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(InterpretedPercentDone.__members__.keys()),
-               callback=InterpretedPercentDone.ConvertForClick)
+@click.option(
+    "-c",
+    "--complete",
+    help="",
+    default="unspecified",
+    type=click.Choice(InterpretedPercentDone.__members__.keys()),
+    callback=InterpretedPercentDone.ConvertForClick,
+)
 def fn(
     filter_string: str,
     ids: bool = False,
     include_files: bool = False,
-    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified,
 ) -> None:
     """Filter by name. Case insensitive."""
 
@@ -314,14 +350,19 @@ def fn(
 @click.argument("filter_string")
 @click.option("--ids", is_flag=True)
 @click.option("--include-files", is_flag=True)
-@click.option("-c", "--complete", help="", default="unspecified",
-               type=click.Choice(InterpretedPercentDone.__members__.keys()),
-               callback=InterpretedPercentDone.ConvertForClick)
+@click.option(
+    "-c",
+    "--complete",
+    help="",
+    default="unspecified",
+    type=click.Choice(InterpretedPercentDone.__members__.keys()),
+    callback=InterpretedPercentDone.ConvertForClick,
+)
 def fp(
     filter_string: str,
     ids: bool = False,
     include_files: bool = False,
-    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified,
 ) -> None:
     """Filter by path. Case sensitive."""
 
@@ -434,7 +475,7 @@ def test_cli() -> None:
                 continue
 
             print(f'# {id}, {name}')
-            #print(f'transmission-remote -t {id} --move /home/xjjk/Downloads/torrents/Automatic.Music/201901/delete')
+            # print(f'transmission-remote -t {id} --move /home/xjjk/Downloads/torrents/Automatic.Music/201901/delete')
             print(f'transmission-remote -t {id} --remove')
 
 
