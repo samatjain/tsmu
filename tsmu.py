@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from pprint import pprint  # NOQA
 from shlex import quote as shquote
-from typing import Any, Callable, Dict, Final, Generator, List, Optional
+from typing import Any, Callable, Dict, Final, Generator, List, Optional, Set
 
 import click
 import pygments, pygments.lexers, pygments.formatters.terminal
@@ -424,11 +424,15 @@ def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
     """Print the parent directory of incomplete files."""
     tc = ConnectToTransmission()
     files = tc.get_files(torrent_id)[torrent_id]
+    parent_paths: Set[Path] = set()  # unique parents
+
     for file_info in files.values():
         if file_info['size'] != file_info['completed']:
             p = pathlib.PurePath(file_info['name'])
-            # print(p.parents[parents])
-            print('rm -rf ' + str(p.parents[parents]))
+            parent_paths.add(p.parents[parents])
+
+    for p in sorted(parent_paths):
+        print('rm -rf ' + str(p))
 
 
 @cli.command("test")
