@@ -420,7 +420,7 @@ def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
     default=0,
     help='Number of parent directories to go up. 0 means first parent',
 )
-def incomplete_files_cli(torrent_id: int, parents) -> None:
+def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
     """Print the parent directory of incomplete files."""
     tc = ConnectToTransmission()
     files = tc.get_files(torrent_id)[torrent_id]
