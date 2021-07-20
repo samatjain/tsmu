@@ -403,6 +403,11 @@ def ffl_cli() -> None:
 @click.argument('magnets_file', type=click.File('r'))
 def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
     """Add text file full of magnet links to current directory."""
+    settings_file_path = (
+        Path(click.get_app_dir("transmission-daemon"), "settings.json").expanduser().resolve()
+    )
+    settings = json.load(open(settings_file_path))
+    rpc_port = settings["rpc-port"]
     for line in magnets_file.readlines():
         if line:
             line = line.strip()
@@ -410,7 +415,7 @@ def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
             continue
         if line[0] == '#':
             continue
-        print(f'transmission-remote -w $(pwd) -a "{line}"')
+        print(f'transmission-remote {rpc_port} -w $(pwd) -a "{line}"')
 
 
 @cli.command("incomplete-files")
