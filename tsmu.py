@@ -14,9 +14,11 @@ from shlex import quote as shquote
 from typing import Any, Callable, Dict, Final, Generator, List, Optional, Set
 
 import click
-import pygments, pygments.lexers, pygments.formatters.terminal
-
-import transmissionrpc, transmissionrpc.utils
+import pygments
+import pygments.formatters.terminal
+import pygments.lexers
+import transmissionrpc
+import transmissionrpc.utils
 
 
 def ConnectToTransmission() -> transmissionrpc.Client:
@@ -297,7 +299,8 @@ def dump_cli(
     """Dump all torrents. Filters allowed."""
 
     def DumpFilterPredicate(
-        t: transmissionrpc.torrent, pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
+        t: transmissionrpc.torrent,
+        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for Dump."""
         percent_done = t['percentDone']
@@ -385,7 +388,6 @@ def fp(
 @cli.command("ffl")
 def ffl_cli() -> None:
     """First field as list."""
-
     column: List[int] = []
 
     for line in sys.stdin.readlines():
