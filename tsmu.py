@@ -404,9 +404,8 @@ def ffl_cli() -> None:
 def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
     """Add text file full of magnet links to current directory."""
     for line in magnets_file.readlines():
-        if not line:
-            continue
-        line = line.strip()
+        if line:
+            line = line.strip()
         if not line:
             continue
         if line[0] == '#':
