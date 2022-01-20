@@ -333,6 +333,12 @@ def fn(
 ) -> None:
     """Filter by name. Case insensitive."""
 
+    if filter_string.startswith("./"):
+        filter_string = filter_string[2:]
+
+    if filter_string.endswith("/"):
+        filter_string = filter_string[:-1]
+
     def TorrentNameFilterPredicate(
         s: str,
         t: transmissionrpc.torrent,
