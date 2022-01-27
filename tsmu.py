@@ -160,8 +160,11 @@ def getsubitems(obj, itemkey, islast, maxlinelength):
 
 
 def basictype2str(obj):
+    from json.encoder import py_encode_basestring
+
     if isinstance(obj, str):
-        strobj = "\"" + str(obj) + "\""
+        strobj = py_encode_basestring(obj)
+        # strobj = "\"" + str(obj) + "\""
     elif isinstance(obj, bool):
         strobj = {True: "true", False: "false"}[obj]
     else:
