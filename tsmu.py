@@ -37,23 +37,33 @@ TorrentInformation = Dict[str, Any]
 
 
 def Dump(
-    tc: transmissionrpc.Client, arguments: Optional[List[str]] = None, include_files: bool = False
+    tc: transmissionrpc.Client, field_names: Optional[List[str]] = None, include_files: bool = False
 ) -> Generator[TorrentInformation, None, None]:
-    if arguments and include_files:
-        arguments += ['files', 'priorities', 'wanted']
-    for t in tc.get_torrents(arguments=arguments):
-        if include_files:
-            files = [fi['name'] for fi in t.files().values()]
-        else:
-            files = []
-        yield {
+    if field_names and include_files:
+        field_names += ['files', 'priorities', 'wanted']
+    for t in tc.get_torrents(arguments=field_names):
+        torrent_info = {
             "id": t.id,
             "name": t.name,
             "location": t.downloadDir,
             "status": t.status,
             "percentDone": t.percentDone,
-            "files": files,
         }
+
+        if include_files:
+            torrent_info["files"] = [fi['name'] for fi in t.files().values()]
+
+        # add remaining arguments, ignoring those we handled already
+        for fn in field_names:
+            if fn in {"files", "downloadDir"}:
+                continue
+            if fn == 'errorString':
+                if t.errorString and len(t.errorString) > 0:
+                    torrent_info['errorString'] = t.errorString
+                continue
+            torrent_info[fn] = getattr(t, fn)
+
+        yield torrent_info
 
 
 ################################################################################
@@ -187,7 +197,14 @@ def indentitems(items, indent, indentcurrent):
 ################################################################################
 
 
-BASE_ARGUMENTS: Final[List[str]] = ['id', 'name', 'downloadDir', 'status', 'percentDone']
+BASE_FIELD_NAMES: Final[List[str]] = [
+    'id',
+    'name',
+    'downloadDir',
+    'status',
+    'percentDone',
+    'errorString',
+]
 
 
 class InterpretedPercentDone(enum.Enum):
@@ -261,9 +278,10 @@ def _filter(
     filter_predicate: FilterPredicate, include_files: bool = False, ids: bool = False
 ) -> None:
     tc = ConnectToTransmission()
-    merged = [
+    field_names += BASE_FIELD_NAMES
+    merged: List[TorrentInformation] = [
         t
-        for t in Dump(tc, arguments=BASE_ARGUMENTS, include_files=include_files)
+        for t in Dump(tc, field_names=field_names, include_files=include_files)
         if filter_predicate(t)
     ]
     if ids:
