@@ -12,17 +12,19 @@ import subprocess
 
 from pathlib import Path
 
+from typing import FrozenSet
+
 import click
 
 
-transmission_env_variables = [
+transmission_env_variables: FrozenSet[str] = frozenset({
     'TR_APP_VERSION',
     'TR_TIME_LOCALTIME',
     'TR_TORRENT_DIR',
     'TR_TORRENT_HASH',
     'TR_TORRENT_ID',
     'TR_TORRENT_NAME',
-]
+})
 
 output_dict = {e: os.getenv(e) for e in transmission_env_variables}
 if tr_torrent_id := output_dict.get('TR_TORRENT_ID'):
