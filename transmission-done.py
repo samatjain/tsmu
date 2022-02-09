@@ -4,6 +4,7 @@ Setup this script w/:
 
     transmission-remote --torrent-done-script ~/transmission-done.py
 """
+import functools
 import os
 import json
 import time
@@ -33,6 +34,7 @@ if tr_torrent_id := output_dict.get('TR_TORRENT_ID'):
 #    output_dict['TR_TORRENT_ID'] = int(output_dict['TR_TORRENT_ID'])
 
 
+@functools.cache
 def DetermineTransmissionPort() -> int:
     settings_file_path = (
         Path(click.get_app_dir("transmission-daemon"), "settings.json").expanduser().resolve()
