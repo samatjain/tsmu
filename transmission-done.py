@@ -70,7 +70,7 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
             str(moved_download_path),
         ]
         subprocess.run(move_torrent_cmd)
-        time.sleep(10)
+        time.sleep(15)
 
     verify_cmd = [
         'transmission-remote',
