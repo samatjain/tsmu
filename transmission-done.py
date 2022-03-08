@@ -87,9 +87,9 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
     target_dir = moved_download_path / output_dict['TR_TORRENT_NAME']
 
     if target_dir.is_dir():
-        xxh_cmd = f"(cd {moved_download_path} && find {target_name} -type f -exec xxhsum {{}} \; > {moved_download_path}/{target_name}.auto.xxh) &"
+        xxh_cmd = f"(cd {moved_download_path} && ionice -c 3 find {target_name} -type f -exec xxhsum {{}} \; > {moved_download_path}/{target_name}.auto.xxh) &"
     else:
-        xxh_cmd = f"(cd {moved_download_path} && xxhsum {target_name} > {target_name}.auto.xxh) &"
+        xxh_cmd = f"(cd {moved_download_path} && ionice -c 3 xxhsum {target_name} > {target_name}.auto.xxh) &"
     output_dict['xxh'] = xxh_cmd
 
     subprocess.run(xxh_cmd, shell=True)
