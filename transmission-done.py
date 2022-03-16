@@ -49,6 +49,10 @@ def DetermineTransmissionPort() -> int:
 if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
     # if 'TR_TORRENT_DIR' in output_dict and output_dict['TR_TORRENT_DIR']:
     # current_download_path = Path(output_dict['TR_TORRENT_DIR'])
+
+    target_name = output_dict['TR_TORRENT_NAME']
+    target_name = shlex.quote(target_name)
+
     if 'done' not in current_download_path.name:
         if '.incomplete' in current_download_path.name:
             moved_download_path = current_download_path.parent / str(
@@ -58,6 +62,13 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
             moved_download_path = current_download_path.parent / (
                 str(current_download_path.name) + ".done"
             )
+
+        target_dir = moved_download_path / output_dict['TR_TORRENT_NAME']
+
+        # If we already have downloaded a torrent of this name, put into "dupes" folder
+        if target_dir.exists():
+            moved_download_path = moved_download_path / "dupes"
+
         # output_dict['MovedDirectory'] = str(moved_download_path)
         moved_download_path.mkdir(parents=True, exist_ok=True)
 
@@ -80,11 +91,6 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
         '--verify',
     ]
     subprocess.run(verify_cmd)
-
-    target_name = output_dict['TR_TORRENT_NAME']
-    target_name = shlex.quote(target_name)
-
-    target_dir = moved_download_path / output_dict['TR_TORRENT_NAME']
 
     if target_dir.is_dir():
         xxh_cmd = f"(cd {moved_download_path} && ionice -c 3 find {target_name} -type f -exec xxhsum {{}} \; > {moved_download_path}/{target_name}.auto.xxh) &"
