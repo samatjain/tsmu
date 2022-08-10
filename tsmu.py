@@ -30,6 +30,7 @@ def ConnectToTransmission() -> transmissionrpc.Client:
 
     host, port, username, password = 'localhost', settings['rpc-port'], None, None
     tc = transmissionrpc.Client(host, port, username, password)
+    tc.timeout = 90  # Increase timeout to 90s
     return tc
 
 
