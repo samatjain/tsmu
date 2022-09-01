@@ -82,8 +82,9 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
         target_dir = moved_download_path / output_dict['TR_TORRENT_NAME']
 
         # If we already have downloaded a torrent of this name, put into "dupes" folder
-        if target_dir.exists():
+        while target_dir.exists():
             moved_download_path = moved_download_path / "dupes"
+            target_dir = moved_download_path / output_dict['TR_TORRENT_NAME']
 
         # output_dict['MovedDirectory'] = str(moved_download_path)
         moved_download_path.mkdir(parents=True, exist_ok=True)
