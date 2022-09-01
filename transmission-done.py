@@ -120,6 +120,8 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
     # output_dict['MoveTorrent'] = ' '.join(move_torrent_cmd)
 
 
+# Not safe at all! Multiple processes of this script may be running
+# But, most of the time, it's fine…
 with Path("~/transmission-done.log.json").expanduser().open('a') as fp:
     fp.write(json.dumps(output_dict))
     fp.write("\n")
