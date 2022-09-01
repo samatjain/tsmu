@@ -1,30 +1,24 @@
 #!/usr/bin/env python3
-from genericpath import exists
-import os
-from pathlib import Path
-import logging
-
-from typing import Any, Optional
-
 import json
-import click
+import logging
+import os
 import re
 import shlex
-import typer
-
 import subprocess
-from shlex import quote
-
-import more_itertools
 
 # Logging
 from datetime import datetime
-from rich.logging import RichHandler
 from logging import LogRecord
-from rich.text import Text
-from rich.traceback import Traceback
+from pathlib import Path
+from shlex import quote
+from typing import Any, Optional
 
-from rich.traceback import install
+import click
+import more_itertools
+import typer
+from rich.logging import RichHandler
+from rich.text import Text
+from rich.traceback import Traceback, install
 
 install(show_locals=True)
 
@@ -129,8 +123,9 @@ except ImportError:
 
 ## from tsmu.py
 
-import transmissionrpc
 import shutil
+
+import transmissionrpc
 
 
 def ConnectToTransmission() -> transmissionrpc.Client:
