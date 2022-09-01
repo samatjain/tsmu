@@ -4,19 +4,18 @@ Setup this script w/:
 
     transmission-remote --torrent-done-script ~/transmission-done.py
 """
+import datetime
 import functools
-import os
 import json
-import time
+import os
 import shlex
 import subprocess
-
+import sys
+import time
 from pathlib import Path
-
 from typing import FrozenSet
 
 import click
-
 
 transmission_env_variables: FrozenSet[str] = frozenset(
     {
@@ -53,11 +52,28 @@ if current_download_path := Path(output_dict.get('TR_TORRENT_DIR')):
     target_name = output_dict['TR_TORRENT_NAME']
     target_name = shlex.quote(target_name)
 
-    if 'done' not in current_download_path.name:
-        if '.incomplete' in current_download_path.name:
+    should_move = True
+
+    if (
+        "02-baked" in current_download_path.parts
+        or '.done' in current_download_path.name
+        or 'dupes' in current_download_path.parts
+    ):
+        should_move = False
+
+    if should_move:
+        # New "hot" format, from 01-hot -> $FOLDER_NAME
+        if current_download_path.name.endswith("01-hot") or current_download_path.name.endswith(
+            "_hot"
+        ):
+            date_tag = datetime.datetime.now().strftime('%Y%m.%U')
+            moved_download_path = current_download_path.parent / "02-baked" / date_tag
+        # $FOLDER_NAME.incomplete -> $FOLDER_NAME.done
+        elif '.incomplete' in current_download_path.name:
             moved_download_path = current_download_path.parent / str(
                 current_download_path.name
             ).replace('.incomplete', '.done')
+        # $FOLDER_NAME -> $FOLDER_NAME.done
         else:
             moved_download_path = current_download_path.parent / (
                 str(current_download_path.name) + ".done"
