@@ -33,7 +33,7 @@ def ConnectToTransmission() -> transmissionrpc.Client:
     )
     settings = json.load(open(settings_file_path))
 
-    host, port, username, password = 'localhost', settings['rpc-port'], None, None
+    host, port, username, password = "localhost", settings["rpc-port"], None, None
     tc = transmissionrpc.Client(host, port, username, password)
     tc.timeout = 90  # Increase timeout to 90s
     return tc
@@ -46,7 +46,7 @@ def Dump(
     tc: transmissionrpc.Client, field_names: Optional[List[str]] = None, include_files: bool = False
 ) -> Generator[TorrentInformation, None, None]:
     if field_names and include_files:
-        field_names += ['files', 'priorities', 'wanted']
+        field_names += ["files", "priorities", "wanted"]
     for t in tc.get_torrents(arguments=field_names):
         torrent_info = {
             "id": t.id,
@@ -57,15 +57,15 @@ def Dump(
         }
 
         if include_files:
-            torrent_info["files"] = [fi['name'] for fi in t.files().values()]
+            torrent_info["files"] = [fi["name"] for fi in t.files().values()]
 
         # add remaining arguments, ignoring those we handled already
         for fn in field_names:
             if fn in {"files", "downloadDir"}:
                 continue
-            if fn == 'errorString':
+            if fn == "errorString":
                 if t.errorString and len(t.errorString) > 0:
-                    torrent_info['errorString'] = t.errorString
+                    torrent_info["errorString"] = t.errorString
                 continue
             torrent_info[fn] = getattr(t, fn)
 
@@ -204,12 +204,12 @@ def indentitems(items, indent, indentcurrent):
 
 
 BASE_FIELD_NAMES: Final[List[str]] = [
-    'id',
-    'name',
-    'downloadDir',
-    'status',
-    'percentDone',
-    'errorString',
+    "id",
+    "name",
+    "downloadDir",
+    "status",
+    "percentDone",
+    "errorString",
 ]
 
 
@@ -300,8 +300,8 @@ def _filter(
             action(t)
         return
     if ids:
-        ids_str = [str(t['id']) for t in merged]
-        click.echo(','.join(ids_str))
+        ids_str = [str(t["id"]) for t in merged]
+        click.echo(",".join(ids_str))
     else:  # full JSON
         jd = prettyjson(merged, indent=2)
         click.echo(
@@ -339,7 +339,7 @@ def dump_cli(
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for Dump."""
-        percent_done = t['percentDone']
+        percent_done = t["percentDone"]
         if InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
@@ -381,8 +381,8 @@ def fn(
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by name."""
-        percent_done = t['percentDone']
-        if s.lower() in t['name'].lower() and InterpretedPercentDone.predicate(pd, percent_done):
+        percent_done = t["percentDone"]
+        if s.lower() in t["name"].lower() and InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
@@ -417,8 +417,8 @@ def fp(
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by path."""
-        percent_done = t['percentDone']
-        if s in t['location'] and InterpretedPercentDone.predicate(pd, percent_done):
+        percent_done = t["percentDone"]
+        if s in t["location"] and InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
@@ -459,8 +459,8 @@ def fpd(
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by path."""
-        percent_done = t['percentDone']
-        if s in t['location'] and InterpretedPercentDone.predicate(pd, percent_done):
+        percent_done = t["percentDone"]
+        if s in t["location"] and InterpretedPercentDone.predicate(pd, percent_done):
             return True
 
         return False
@@ -470,9 +470,9 @@ def fpd(
 
     dumped = []
     field_names = [
-        'hashString',
-        'magnetLink',
-        'torrentFile',
+        "hashString",
+        "magnetLink",
+        "torrentFile",
     ]
 
     def DumpAction(t: TorrentInformation):
@@ -498,21 +498,21 @@ def fpd(
 
     for ti in dumped:
         DumpTorrentMetadata(ti, dump_directory, use_name=names)
-        print(ti['name'])
+        print(ti["name"])
 
 
 def DumpTorrentMetadata(
     torrent_info: TorrentInformation, output_path: Path, use_name: bool = False
 ) -> Path:
-    assert 'torrentFile' in torrent_info
+    assert "torrentFile" in torrent_info
     ti = torrent_info.copy()
 
-    for unnecessary_attr in {'id', 'downloadDir', 'percentDone'}:
+    for unnecessary_attr in {"id", "downloadDir", "percentDone"}:
         del ti[unnecessary_attr]
 
-    name = ti['name']
-    transmission_torrent_file = ti['torrentFile']
-    hash = ti['hash']
+    name = ti["name"]
+    transmission_torrent_file = ti["torrentFile"]
+    hash = ti["hash"]
 
     # TODO: make sure name is filesystem-safe
     if use_name:
@@ -520,18 +520,18 @@ def DumpTorrentMetadata(
     else:
         filename_base = hash
 
-    dest_torrent_filename = filename_base + '.torrent'
-    metadata_filename = filename_base + '.json'
+    dest_torrent_filename = filename_base + ".torrent"
+    metadata_filename = filename_base + ".json"
 
     # Fix filename
-    ti['torrentFile'] = dest_torrent_filename
+    ti["torrentFile"] = dest_torrent_filename
 
     # TODO: permissions may be too restrictive
     dest_torrent_full_path = Path(
         shutil.copy2(transmission_torrent_file, output_path / dest_torrent_filename)
     )
 
-    with Path(output_path / metadata_filename).open('w') as fp:
+    with Path(output_path / metadata_filename).open("w") as fp:
         fp.write(json.dumps(ti))
 
     return dest_torrent_full_path
@@ -544,15 +544,15 @@ def ffl_cli() -> None:
 
     for line in sys.stdin.readlines():
         lc = line.split()
-        id = int(lc[0].strip('*'))
+        id = int(lc[0].strip("*"))
         column.append(id)
 
     column_as_str = (str(i) for i in column)
-    click.echo(','.join(column_as_str))
+    click.echo(",".join(column_as_str))
 
 
 @cli.command("magnets-here")
-@click.argument('magnets_file', type=click.File('r'))
+@click.argument("magnets_file", type=click.File("r"))
 def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
     """Add text file full of magnet links to current directory."""
     settings_file_path = (
@@ -565,18 +565,18 @@ def magnets_here_cli(magnets_file: io.TextIOBase) -> None:
             line = line.strip()
         if not line:
             continue
-        if line[0] == '#':
+        if line[0] == "#":
             continue
         print(f'transmission-remote {rpc_port} -w $(pwd) -a "{line}"')
 
 
 @cli.command("incomplete-files")
-@click.argument('torrent_id', type=int)
+@click.argument("torrent_id", type=int)
 @click.option(
-    '--parents',
+    "--parents",
     type=int,
     default=0,
-    help='Number of parent directories to go up. 0 means first parent',
+    help="Number of parent directories to go up. 0 means first parent",
 )
 def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
     """Print the parent directory of incomplete files."""
@@ -585,12 +585,12 @@ def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
     parent_paths: Set[Path] = set()  # unique parents
 
     for file_info in files.values():
-        if file_info['size'] != file_info['completed']:
-            p = pathlib.PurePath(file_info['name'])
+        if file_info["size"] != file_info["completed"]:
+            p = pathlib.PurePath(file_info["name"])
             parent_paths.add(p.parents[parents])
 
     for p in sorted(parent_paths):
-        print('rm -rf ' + str(p))
+        print("rm -rf " + str(p))
 
 
 @cli.command("readd-stopped")
@@ -643,11 +643,11 @@ def readd_stopped_cli(
 
     for row in rows:
         name, hash, download_dir, magnet_link, transmission_torrent_file = (
-            row['name'],
-            row['hash'],
-            row['downloadDir'],
-            row['magnetLink'],
-            row['torrentFile'],
+            row["name"],
+            row["hash"],
+            row["downloadDir"],
+            row["magnetLink"],
+            row["torrentFile"],
         )
         # if 'rarbg-1080p' not in download_dir:
         # if 'revtt-1080p' not in download_dir:
@@ -656,7 +656,7 @@ def readd_stopped_cli(
         # if 'MP3-daily' not in download_dir:
         # if 'XXX' not in download_dir:
         # if '202112.51' not in download_dir:
-        if filter_string != 'all' and filter_string not in download_dir:
+        if filter_string != "all" and filter_string not in download_dir:
             continue
         backed_up_torrent_file = DumpTorrentMetadata(row, READD_FOLDER)
         # copied_file = shutil.copy2(transmission_torrent_file, READD_FOLDER)
@@ -666,17 +666,17 @@ def readd_stopped_cli(
         # backed_up_torrent_file = Path(copied_file)
 
         if rsync_from_parent:
-            out = f"rsync -aPv ../\"{name}\" . "
+            out = f'rsync -aPv ../"{name}" . '
             print(out)
         if rsync_from_dupes:
-            out = f"rsync -aPv dupes/\"{name}\" . "
+            out = f'rsync -aPv dupes/"{name}" . '
             print(out)
         else:
-            out = f'''
+            out = f"""
 Readding hash={hash},
         name="{name}",
         downloadDir={download_dir}
-        torrentFile={backed_up_torrent_file}'''.strip()
+        torrentFile={backed_up_torrent_file}""".strip()
             print(out)
 
         if not dry_run:
@@ -702,21 +702,21 @@ def rarbg_trackers_cli() -> None:
     trackers = set()
 
     def RarbgFilterPredicate(t: TorrentInformation):
-        for tracker in t['trackers']:
-            if 'rarbg' in tracker['announce']:
+        for tracker in t["trackers"]:
+            if "rarbg" in tracker["announce"]:
                 return True
         return False
 
     trackers = set()
 
     def RarbgTrackersCollectAction(t: TorrentInformation):
-        for tracker in t['trackers']:
+        for tracker in t["trackers"]:
             tracker_url = tracker["announce"]
             if tracker_url.startswith("udp://") and tracker_url.endswith("/announce"):
                 tracker_url = tracker_url[:-9]
             trackers.add(tracker_url)
 
-    _filter(RarbgFilterPredicate, field_names=['trackers'], action=RarbgTrackersCollectAction)
+    _filter(RarbgFilterPredicate, field_names=["trackers"], action=RarbgTrackersCollectAction)
     # _filter(RarbgFilterPredicate, field_names=['trackers'])
 
     pprint(trackers)
@@ -739,7 +739,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
     for t in tc.get_torrents(arguments=fields):
 
         if t.percentDone != 1 and t.status == "stopped":
-            if t.downloadDir == '/archive/torrents/rarbg-1080p/202201.02.incomplete':
+            if t.downloadDir == "/archive/torrents/rarbg-1080p/202201.02.incomplete":
                 screwed_up_torrents.append(t)
 
     max_count = 25
@@ -764,7 +764,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
             continue
 
         skip_revtt = False
-        if skip_revtt and 'revolution' in t.magnetLink:
+        if skip_revtt and "revolution" in t.magnetLink:
             continue
 
         count = count + 1
@@ -773,7 +773,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
 
         if len(locations) == 1:
 
-            loc = Path('/archive/torrents/revtt-1080p') / locations[0]
+            loc = Path("/archive/torrents/revtt-1080p") / locations[0]
             loc = loc.parent
             # print(name, loc, t.downloadDir)
             if loc == t.downloadDir:
@@ -781,9 +781,9 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
 
         actual_location = None
         for loc in locations:
-            if '02.incomplete' in loc:
+            if "02.incomplete" in loc:
                 continue
-            if skip_revtt and 'revtt' in loc:
+            if skip_revtt and "revtt" in loc:
                 continue
             actual_location = loc
 
@@ -792,7 +792,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
             print()
             continue
 
-        actual_location = Path('/archive/torrents/revtt-1080p') / actual_location
+        actual_location = Path("/archive/torrents/revtt-1080p") / actual_location
         actual_location = actual_location.parent
 
         print(
@@ -819,7 +819,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
             tc.remove_torrent(t.hashString)
             tc.add_torrent(str(backed_up_torrent_file), download_dir=actual_location)
 
-        with Path("~/fix-fa-corruption.sh").expanduser().open('a') as fp:
+        with Path("~/fix-fa-corruption.sh").expanduser().open("a") as fp:
             fp.write(f"trash {t.downloadDir}/{name}\n")
 
     # pprint(downloadDirs)
@@ -827,7 +827,7 @@ def fix_fa_corruption(dry_run: bool = True) -> None:
 
 @cli.command("test")
 def test_cli() -> None:
-    items = '''
+    items = """
     Chaka_Khan-Hello_Happiness-SINGLE-WEB-2019-ENRAGED
     German_TOP100_Single_Charts_14_01_2019-MCG
     Junior_Roy_And_Ashanti_Selah-Urban_Observations-WEB-2018-RYG
@@ -844,34 +844,34 @@ def test_cli() -> None:
     VA-Mastermix_Party_Animals_Volume_One-REISSUE_REMASTERED-CD-FLAC-2008-WRE
     VA-Mastermix_Party_Animals_Volume_Three-REISSUE_REMASTERED-CD-FLAC-2008-WRE
     Young_Twon-Longevity-WEB-2015-ESG
-    '''
+    """
 
     merged = []
 
-    with Path('tsm.json').open() as fp:
+    with Path("tsm.json").open() as fp:
         merged = json.load(fp)
 
     items = items.splitlines()
     # Ignore blank lines and lines beginning with '#'
-    items = [i for i in items if i and not i.startswith('#')]
+    items = [i for i in items if i and not i.startswith("#")]
 
     for i in merged:
-        if '201901' in i['location']:
-            name = i['name']
-            id = i['id']
+        if "201901" in i["location"]:
+            name = i["name"]
+            id = i["id"]
 
             has_problem = False
-            for f in i['files']:
+            for f in i["files"]:
                 if name not in f:
                     has_problem = True
 
             if has_problem:
                 continue
 
-            print(f'# {id}, {name}')
+            print(f"# {id}, {name}")
             # print(f'transmission-remote -t {id} --move /home/xjjk/Downloads/torrents/Automatic.Music/201901/delete')
-            print(f'transmission-remote -t {id} --remove')
+            print(f"transmission-remote -t {id} --remove")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
