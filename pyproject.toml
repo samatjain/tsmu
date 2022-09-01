@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "tsmu"
+version = "0.1.0"
+description = "Utilities for managing torrents with Transmission (BitTorrent client)"
+authors = ["Samat K Jain <_@skj.io>"]
+
+[tool.poetry.scripts]
+tsmu = "tsmu.cli.tsmu:cli"
+transmission-done-standalone = "tsmu.cli.transmission_done_standalone:main"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.3"
+transmissionrpc = "^0.11"
+Pygments = "^2.13.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = 'black'
+
+[tool.pylint.messages_control]
+disable = [
+    "invalid-name"
+]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
