@@ -6,8 +6,13 @@ import enum
 import functools
 import io
 import json
+import os
 import pathlib
+import shlex
+import shutil
+import subprocess
 import sys
+import time
 from pathlib import Path
 from pprint import pprint  # NOQA
 from shlex import quote as shquote
@@ -273,10 +278,15 @@ class TorrentStatus(enum.Enum):
 
 # Given a torrent, return true/false about it
 FilterPredicate = Callable[[TorrentInformation], bool]
+FilterPredicateAction = Callable[[TorrentInformation], None]
 
 
 def _filter(
-    filter_predicate: FilterPredicate, include_files: bool = False, ids: bool = False
+    filter_predicate: FilterPredicate,
+    include_files: bool = False,
+    ids: bool = False,
+    field_names: List[str] = [],
+    action: Optional[FilterPredicateAction] = None,
 ) -> None:
     tc = ConnectToTransmission()
     field_names += BASE_FIELD_NAMES
@@ -285,6 +295,10 @@ def _filter(
         for t in Dump(tc, field_names=field_names, include_files=include_files)
         if filter_predicate(t)
     ]
+    if action:
+        for t in merged:
+            action(t)
+        return
     if ids:
         ids_str = [str(t['id']) for t in merged]
         click.echo(','.join(ids_str))
@@ -321,7 +335,7 @@ def dump_cli(
     """Dump all torrents. Filters allowed."""
 
     def DumpFilterPredicate(
-        t: transmissionrpc.torrent,
+        t: TorrentInformation,
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for Dump."""
@@ -363,7 +377,7 @@ def fn(
 
     def TorrentNameFilterPredicate(
         s: str,
-        t: transmissionrpc.torrent,
+        t: TorrentInformation,
         pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
     ) -> bool:
         """FilterPredicate for filter by name."""
@@ -411,6 +425,116 @@ def fp(
 
     fp = functools.partial(TorrentPathFilterPredicate, filter_string, pd=complete)
     _filter(fp, include_files, ids)
+
+
+@cli.command("fpd")
+@click.argument("filter_string")
+@click.option("--ids", is_flag=True)
+@click.option("--include-files", is_flag=True)
+@click.option(
+    "--names/--no-names",
+    default=True,
+    help="Dump torrents and metadata using torrent names, otherwise info hash",
+)
+@click.option(
+    "-c",
+    "--complete",
+    help="",
+    default="unspecified",
+    type=click.Choice(InterpretedPercentDone.__members__.keys()),
+    callback=InterpretedPercentDone.ConvertForClick,
+)
+def fpd(
+    filter_string: str,
+    ids: bool = False,
+    include_files: bool = False,
+    names: bool = True,
+    complete: InterpretedPercentDone = InterpretedPercentDone.unspecified,
+) -> None:
+    """Filter by path, dump torrent information. Case sensitive. Path should be absolute."""
+
+    def TorrentPathFilterPredicate(
+        s: str,
+        t: TorrentInformation,
+        pd: InterpretedPercentDone = InterpretedPercentDone.notstarted,
+    ) -> bool:
+        """FilterPredicate for filter by path."""
+        percent_done = t['percentDone']
+        if s in t['location'] and InterpretedPercentDone.predicate(pd, percent_done):
+            return True
+
+        return False
+
+    filter_string_path = Path(filter_string)
+    assert filter_string_path.exists()
+
+    dumped = []
+    field_names = [
+        'hashString',
+        'magnetLink',
+        'torrentFile',
+    ]
+
+    def DumpAction(t: TorrentInformation):
+        dumped.append(
+            {
+                "id": t["id"],
+                "hash": t["hashString"],
+                "name": t["name"],
+                "downloadDir": t["location"],
+                "magnetLink": t["magnetLink"],
+                "percentDone": t["percentDone"],
+                "torrentFile": t["torrentFile"],
+            }
+        )
+        return
+
+    fp = functools.partial(TorrentPathFilterPredicate, filter_string, pd=complete)
+    _filter(fp, include_files, field_names=field_names, action=DumpAction)
+
+    dump_directory = filter_string_path / f"{filter_string_path.name}.dump"
+    dump_directory.mkdir(parents=True, exist_ok=True)
+    print(f"Dumping into {dump_directory}")
+
+    for ti in dumped:
+        DumpTorrentMetadata(ti, dump_directory, use_name=names)
+        print(ti['name'])
+
+
+def DumpTorrentMetadata(
+    torrent_info: TorrentInformation, output_path: Path, use_name: bool = False
+) -> Path:
+    assert 'torrentFile' in torrent_info
+    ti = torrent_info.copy()
+
+    for unnecessary_attr in {'id', 'downloadDir', 'percentDone'}:
+        del ti[unnecessary_attr]
+
+    name = ti['name']
+    transmission_torrent_file = ti['torrentFile']
+    hash = ti['hash']
+
+    # TODO: make sure name is filesystem-safe
+    if use_name:
+        filename_base = name
+    else:
+        filename_base = hash
+
+    dest_torrent_filename = filename_base + '.torrent'
+    metadata_filename = filename_base + '.json'
+
+    # Fix filename
+    ti['torrentFile'] = dest_torrent_filename
+
+    # TODO: permissions may be too restrictive
+    dest_torrent_full_path = Path(
+        shutil.copy2(transmission_torrent_file, output_path / dest_torrent_filename)
+    )
+
+    with Path(output_path / metadata_filename).open('w') as fp:
+        fp.write(json.dumps(ti))
+
+    return dest_torrent_full_path
 
 
 @cli.command("ffl")
@@ -467,6 +591,238 @@ def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
 
     for p in sorted(parent_paths):
         print('rm -rf ' + str(p))
+
+
+@cli.command("readd-stopped")
+@click.argument("filter_string")
+@click.option("--dry-run/--no-dry-run", default=True)
+@click.option("--rsync-from-parent", is_flag=True, default=False)
+@click.option("--rsync-from-dupes", is_flag=True, default=False)
+def readd_stopped_cli(
+    filter_string: str,
+    dry_run: bool = True,
+    rsync_from_parent: bool = False,
+    rsync_from_dupes: bool = False,
+) -> None:
+    """Readd all torrents that have been stopped because disk was full.
+
+    Pass "all" as an argument to readd-everything; otherwise, a filter to the
+    path, not unlike the fp command.
+
+    Instead of printing the normal output, for dupes directories
+    --rsync-from-parent will print an rsync command attempting to copy the same
+    files from the parent directory.
+
+    This command will not do anything unless --no-dry-run is passed."""
+    READD_FOLDER = Path("~/readded-torrents/").expanduser()
+    READD_FOLDER.mkdir(exist_ok=True)
+
+    tc = ConnectToTransmission()
+    rows = []
+    for t in tc.get_torrents():
+        if t.error != 3:
+            continue
+        error_str = t.errorString
+        if "No data found" in error_str:
+            download_dir, magnet_link, torrent_file, = (
+                t.downloadDir,
+                t.magnetLink,
+                t.torrentFile,
+            )
+            rows.append(
+                {
+                    "id": t.id,
+                    "hash": t.hashString,
+                    "name": t.name,
+                    "downloadDir": t.downloadDir,
+                    "magnetLink": t.magnetLink,
+                    "percentDone": t.percentDone,
+                    "torrentFile": torrent_file,
+                }
+            )
+
+    for row in rows:
+        name, hash, download_dir, magnet_link, transmission_torrent_file = (
+            row['name'],
+            row['hash'],
+            row['downloadDir'],
+            row['magnetLink'],
+            row['torrentFile'],
+        )
+        # if 'rarbg-1080p' not in download_dir:
+        # if 'revtt-1080p' not in download_dir:
+        # if 'revtt-games' not in download_dir:
+        # if 'rarbg-4K.HDR' not in download_dir:
+        # if 'MP3-daily' not in download_dir:
+        # if 'XXX' not in download_dir:
+        # if '202112.51' not in download_dir:
+        if filter_string != 'all' and filter_string not in download_dir:
+            continue
+        backed_up_torrent_file = DumpTorrentMetadata(row, READD_FOLDER)
+        # copied_file = shutil.copy2(transmission_torrent_file, READD_FOLDER)
+        # metadata_file = READD_FOLDER / (hash + ".json")
+        # with open(metadata_file, 'w') as fp:
+        #    fp.write(json.dumps(row))
+        # backed_up_torrent_file = Path(copied_file)
+
+        if rsync_from_parent:
+            out = f"rsync -aPv ../\"{name}\" . "
+            print(out)
+        if rsync_from_dupes:
+            out = f"rsync -aPv dupes/\"{name}\" . "
+            print(out)
+        else:
+            out = f'''
+Readding hash={hash},
+        name="{name}",
+        downloadDir={download_dir}
+        torrentFile={backed_up_torrent_file}'''.strip()
+            print(out)
+
+        if not dry_run:
+            while True:
+                if os.getloadavg()[0] > 2.0:
+                    print("Load is too high, waiting…")
+                    time.sleep(5)
+                    continue
+                tc.remove_torrent(hash)
+                tc.add_torrent(str(backed_up_torrent_file), download_dir=download_dir)
+                break
+
+    if dry_run:
+        print("In dry-run mode, not doing anything. Re-run w/ --no-dry-run to take action.")
+
+        # print(name, download_dir, backed_up_torrent_file)
+
+
+@cli.command("rarbg-trackers")
+def rarbg_trackers_cli() -> None:
+    """List all trackers for rarbg torrents."""
+
+    trackers = set()
+
+    def RarbgFilterPredicate(t: TorrentInformation):
+        for tracker in t['trackers']:
+            if 'rarbg' in tracker['announce']:
+                return True
+        return False
+
+    trackers = set()
+
+    def RarbgTrackersCollectAction(t: TorrentInformation):
+        for tracker in t['trackers']:
+            tracker_url = tracker["announce"]
+            if tracker_url.startswith("udp://") and tracker_url.endswith("/announce"):
+                tracker_url = tracker_url[:-9]
+            trackers.add(tracker_url)
+
+    _filter(RarbgFilterPredicate, field_names=['trackers'], action=RarbgTrackersCollectAction)
+    # _filter(RarbgFilterPredicate, field_names=['trackers'])
+
+    pprint(trackers)
+
+
+@cli.command()
+@click.option("--dry-run/--no-dry-run", default=True)
+def fix_fa_corruption(dry_run: bool = True) -> None:
+    tc = ConnectToTransmission()
+    rows = []
+    downloadDirs = set()
+    screwed_up_torrents = []
+
+    READD_FOLDER = Path("~/readded-torrents/").expanduser()
+    READD_FOLDER.mkdir(exist_ok=True)
+
+    fields = ["torrentFile", "magnetLink", "hashString"]
+    fields += BASE_FIELD_NAMES
+
+    for t in tc.get_torrents(arguments=fields):
+
+        if t.percentDone != 1 and t.status == "stopped":
+            if t.downloadDir == '/archive/torrents/rarbg-1080p/202201.02.incomplete':
+                screwed_up_torrents.append(t)
+
+    max_count = 25
+    count = 0
+    for t in screwed_up_torrents:
+        if count > max_count:
+            return
+
+        name = shlex.quote(t.name)
+        if name.endswith(".mkv"):
+            cmd = f"cd /archive/torrents/revtt-1080p/ && fdfind -F {name}"
+        else:
+            cmd = f"cd /archive/torrents/revtt-1080p/ && fdfind -F -td {name}"
+        rv = subprocess.run(
+            cmd,
+            capture_output=True,
+            shell=True,
+            universal_newlines=True,
+        )
+        if not rv or not rv.stdout:
+            print(f"Skipping {name} ,{cmd=}")
+            continue
+
+        skip_revtt = False
+        if skip_revtt and 'revolution' in t.magnetLink:
+            continue
+
+        count = count + 1
+
+        locations = [line.strip() for line in rv.stdout.splitlines()]
+
+        if len(locations) == 1:
+
+            loc = Path('/archive/torrents/revtt-1080p') / locations[0]
+            loc = loc.parent
+            # print(name, loc, t.downloadDir)
+            if loc == t.downloadDir:
+                print(name)
+
+        actual_location = None
+        for loc in locations:
+            if '02.incomplete' in loc:
+                continue
+            if skip_revtt and 'revtt' in loc:
+                continue
+            actual_location = loc
+
+        if actual_location is None:
+            print(f"Unable to find location for {name}")
+            print()
+            continue
+
+        actual_location = Path('/archive/torrents/revtt-1080p') / actual_location
+        actual_location = actual_location.parent
+
+        print(
+            f"""
+{name} ({hash})
+               hash = {t.hashString}
+  torrent directory = {t.downloadDir}
+   actual directory = {actual_location}
+"""
+        )
+        # print(locations)
+        torrent_info = {
+            "id": t.id,
+            "hash": t.hashString,
+            "name": t.name,
+            "downloadDir": t.downloadDir,
+            "magnetLink": t.magnetLink,
+            "percentDone": t.percentDone,
+            "torrentFile": t.torrentFile,
+        }
+        backed_up_torrent_file = DumpTorrentMetadata(torrent_info, READD_FOLDER)
+
+        if not dry_run:
+            tc.remove_torrent(t.hashString)
+            tc.add_torrent(str(backed_up_torrent_file), download_dir=actual_location)
+
+        with Path("~/fix-fa-corruption.sh").expanduser().open('a') as fp:
+            fp.write(f"trash {t.downloadDir}/{name}\n")
+
+    # pprint(downloadDirs)
 
 
 @cli.command("test")
