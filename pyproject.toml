@@ -5,8 +5,12 @@ description = "Utilities for managing torrents with Transmission (BitTorrent cli
 authors = ["Samat K Jain <_@skj.io>"]
 
 [tool.poetry.scripts]
+# transmission utilities CLI
 tsmu = "tsmu.cli.tsmu:cli"
+# scripts to configure w/ transmission-remote --torrent-done-script
 transmission-done-standalone = "tsmu.cli.transmission_done_standalone:main"
+# transmission-verify replacement, blocks until verify is done
+tsmv = "tsmu.cli.tsmv:cli"
 tsmu-dupes = "tsmu.cli.dupes:run"
 
 [tool.poetry.dependencies]
