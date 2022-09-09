@@ -24,6 +24,7 @@ def cli(tid: str, verbose: bool = False):
     for r in ParseRanges(tid):
         if verbose:
             rv = VerifyTorrent(r, statusCb=print)
+            print()  # print explicit newline
         else:
             rv = VerifyTorrent(r)
         if not rv:

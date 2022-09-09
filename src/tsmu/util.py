@@ -88,8 +88,8 @@ def VerifyTorrent(
             )
             return False
         if torrent.percentDone == 1 and torrent.haveValid and not torrent.haveUnchecked:
-            statusCb(f'Verified name="{torrent.name}" hash="{torrent.hashString}" successfully')
+            statusCb(f'Successfully verified name="{torrent.name}" hash="{torrent.hashString}"')
             return True
 
-        statusCb(f'Unable to verify name="{torrent.name}" hash="{torrent.hashString}"')
+        statusCb(f'Failed to verify name="{torrent.name}" hash="{torrent.hashString}"')
         return False
