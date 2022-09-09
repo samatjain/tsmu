@@ -3,6 +3,10 @@
 Setup this script w/:
 
     transmission-remote --torrent-done-script ~/transmission-done.py
+
+OR
+
+    transmission-remote --torrent-done-script $(which transmission-done-standalone)
 """
 import datetime
 import functools
