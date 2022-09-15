@@ -72,7 +72,8 @@ def DumpTorrentMetadata(
     ti = torrent_info.copy()
 
     for unnecessary_attr in {"id", "downloadDir", "percentDone"}:
-        del ti[unnecessary_attr]
+        if "id" in ti:
+            del ti[unnecessary_attr]
 
     name = torrent_info["name"]
     transmission_torrent_file = ti["torrentFile"]
@@ -154,9 +155,12 @@ def FindXXH(path: Path) -> Optional[Path]:
 
 
 def main(root_path: Path = Path("."), transmission: bool = True):
-    tc = ConnectToTransmission()
     logger.info(f"Scanning path={root_path.absolute()}")
-    torrentsByName = CacheTransmissionTorrents(tc)
+    if transmission:
+        tc = ConnectToTransmission()
+        torrentsByName = CacheTransmissionTorrents(tc)
+    else:
+        tc, torrentsByName = None, dict()
     for de in os.scandir(root_path):
         if not de.is_dir():
             continue
@@ -286,12 +290,13 @@ def main(root_path: Path = Path("."), transmission: bool = True):
 
             if transmission:
                 # this is wrong, we don't want by name, we want by name and downloadDir
+                ti: TorrentInformation | None = None
                 try:
                     ti = torrentsByName[(dupe.name, str(dupe.parent))]
                 except KeyError as e:
-                    logger.error(f"Unable to find torrent in client: {e}")
-                    continue
-                ReAddTorrent(tc, ti, non_dupe.parent)
+                    logger.warning(f"Unable to find dupe torrent in client: {e}. Removing anyway")
+                if ti:
+                    ReAddTorrent(tc, ti, non_dupe.parent)
 
             # logger.info(f"Removing {dupe} and {dupe_xxh}")
             rm_target = "%s{,%s}" % (dupe.name, dupe_xxh.name.replace(dupe.name, ""))
