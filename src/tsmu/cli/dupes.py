@@ -1,99 +1,21 @@
 #!/usr/bin/env python3
 import json
-import logging
 import os
 import re
 import shlex
 import subprocess
 
 # Logging
-from datetime import datetime
-from logging import LogRecord
 from pathlib import Path
-from shlex import quote
 from typing import Any, Optional
 
 import click
-import more_itertools
 import typer
-from rich.logging import RichHandler
-from rich.text import Text
-from rich.traceback import Traceback, install
 
-install(show_locals=True)
+# Logging
+import tsmu.log
 
-from rich.console import Console
-
-
-class MyRichHandler(RichHandler):
-    def __init__(self, *args, **kwargs):
-        error_console = Console(stderr=True)
-        super().__init__(*args, console=error_console, **kwargs)
-
-    #    def get_level_text(self, record: LogRecord) -> Text:
-    #        level_text = super().get_level_text(record)
-    #        component_name = record.name
-    #        level_text = level_text + Text(component_name, style="cyan") + Text(" -")
-    #        # Show thread_name
-    #        #        level_text = (
-    #        #            level_text
-    #        #            + Text(component_name, style="cyan")
-    #        #            + Text("[" + record.threadName + "]")
-    #        #            + Text(" -")
-    #        #        )
-    #        return level_text
-
-    def render(
-        self,
-        *,
-        record: LogRecord,
-        traceback: Optional[Traceback],
-        message_renderable: "ConsoleRenderable",
-    ):
-        """Render log for display.
-        Args:
-            record (LogRecord): logging Record.
-            traceback (Optional[Traceback]): Traceback instance or None for no Traceback.
-            message_renderable (ConsoleRenderable): Renderable (typically Text) containing log message contents.
-        Returns:
-            ConsoleRenderable: Renderable to display log.
-        """
-        path = Path(record.pathname).name + ":" + record.funcName
-        level = self.get_level_text(record)
-        time_format = None if self.formatter is None else self.formatter.datefmt
-        log_time = datetime.fromtimestamp(record.created)
-
-        log_renderable = self._log_render(
-            self.console,
-            [message_renderable] if not traceback else [message_renderable, traceback],
-            log_time=log_time,
-            time_format=time_format,
-            level=level,
-            path=path,
-            line_no=record.lineno,
-            link_path=record.pathname if self.enable_link_path else None,
-        )
-        return log_renderable
-
-
-rich_handler = MyRichHandler(rich_tracebacks=True, show_path=False, markup=True)
-rich_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
-# rich_handler.setFormatter(logging.Formatter('%(name)s - %(message)s', datefmt="[%X]"))
-
-# import os
-# logger = logging.getLogger(os.path.basename(__file__))
-# logger.setLevel(logging.INFO)
-# logger.addHandler(rich_handler)
-# Attach to root logger for debugging from other components
-logger = logging.getLogger(os.path.basename(__file__))
-root_logger = logging.getLogger("")
-root_logger.setLevel(logging.INFO)
-root_logger.addHandler(rich_handler)
-silence_loggers = frozenset({"paramiko.transport", "paramiko.transport.sftp"})
-for sln in silence_loggers:
-    sl = logging.getLogger(sln)
-    sl.setLevel(logging.WARNING)
-# End logging
+logger = tsmu.log.SetupInteractiveScriptLogging()
 
 ## chdir context manager (in Python 3.11?)
 
