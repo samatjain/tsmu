@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+A script that moves a torrent completed in transmission-daemon to an appropriate
+directory, and creates a xxhsum checksum file alongside it.
+
+Setup this script w/:
+
+    transmission-remote --torrent-done-script $(which transmission-done-dramatiq)
+"""
 
 import os
 from typing import FrozenSet
