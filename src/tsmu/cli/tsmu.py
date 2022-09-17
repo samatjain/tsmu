@@ -596,13 +596,11 @@ def incomplete_files_cli(torrent_id: int, parents: bool) -> None:
 @cli.command("readd-stopped")
 @click.argument("filter_string")
 @click.option("--dry-run/--no-dry-run", default=True)
-@click.option("--rsync-from-parent", is_flag=True, default=False)
-@click.option("--rsync-from-dupes", is_flag=True, default=False)
+@click.option("--rsync-from")
 def readd_stopped_cli(
     filter_string: str,
     dry_run: bool = True,
-    rsync_from_parent: bool = False,
-    rsync_from_dupes: bool = False,
+    rsync_from: Path | None = None,
 ) -> None:
     """Readd all torrents that have been stopped because disk was full.
 
@@ -610,8 +608,8 @@ def readd_stopped_cli(
     path, not unlike the fp command.
 
     Instead of printing the normal output, for dupes directories
-    --rsync-from-parent will print an rsync command attempting to copy the same
-    files from the parent directory.
+    --rsync-from will print an rsync command attempting to copy the same
+    files from a specified directory
 
     This command will not do anything unless --no-dry-run is passed."""
     READD_FOLDER = Path("~/readded-torrents/").expanduser()
@@ -665,18 +663,16 @@ def readd_stopped_cli(
         #    fp.write(json.dumps(row))
         # backed_up_torrent_file = Path(copied_file)
 
-        if rsync_from_parent:
-            out = f'rsync -aPv ../"{name}" . '
-            print(out)
-        if rsync_from_dupes:
-            out = f'rsync -aPv dupes/"{name}" . '
+        if rsync_from:
+            # rsync_from_path = Path(rsync_from).absolute()
+            out = f'rsync -aPv {rsync_from}/"{name}" . '
             print(out)
         else:
             out = f"""
 Readding hash={hash},
-        name="{name}",
-        downloadDir={download_dir}
-        torrentFile={backed_up_torrent_file}""".strip()
+         name="{name}",
+         downloadDir={download_dir}
+         torrentFile={backed_up_torrent_file}""".strip()
             print(out)
 
         if not dry_run:
