@@ -53,7 +53,7 @@ SetupBroker()
 def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> None:
     """Verify, and wait, for a transmission torrent to finish verification."""
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
-    TransmissionVerify.logger.info(f"{tid=} {name=} {download_dir=}")
+    TransmissionVerify.logger.info(f"Verifying {tid=} {name=} {download_dir=}")
 
     if (
         "02-baked" in download_dir.parts
@@ -70,7 +70,7 @@ def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> No
         ComputeXxh.send(tid, name, str(download_dir))
         return
 
-    TransmissionVerify.logger.error(f'Error checking name="{name}", leaving as-is')
+    TransmissionVerify.logger.error(f'Error checking {name=}" {tid=}, leaving as-is')
     return
 
 
