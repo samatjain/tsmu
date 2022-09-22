@@ -173,6 +173,7 @@ def main(root_path: Path = Path("."), transmission: bool = True):
         }
         non_dupe = None
         for c in candidate_paths:
+            # logger.info(f"Checking {str(c)}")
             if c.exists():
                 non_dupe = c
         if not non_dupe:
@@ -183,15 +184,10 @@ def main(root_path: Path = Path("."), transmission: bool = True):
         # logger.info(f"Found {dupe}, candidate dupe at {non_dupe}")
 
         # check dupe w/ non_dupe xxh
-        candidate_non_dupe_xxh = {
-            non_dupe.parent / (non_dupe.name + ".auto.xxh"),
-            non_dupe.parent / (non_dupe.name + ".xxh"),
-        }
         non_dupe_xxh = FindXXH(non_dupe)
         if not non_dupe_xxh:
             logger.warning(f'Unable to find non-dupe checksums for "{de.name}"')
             continue
-        non_dupe_xxh = non_dupe.parent / (non_dupe.name + ".auto.xxh")
         dupe_xxh = FindXXH(dupe)
         if not dupe_xxh:
             logger.warning(f'Unable to find dupe checksums for "{de.name}"')
@@ -303,6 +299,9 @@ def main(root_path: Path = Path("."), transmission: bool = True):
             logger.info(f"Removing {dupe.parent}/{rm_target}")
             shutil.rmtree(dupe)
             dupe_xxh.unlink()
+        else:
+            pass
+            # logger.info(f"Not the same: {str(dupe_xxh)} and {str(non_dupe_xxh)}")
 
     return
 
