@@ -49,7 +49,7 @@ def SetupBroker() -> Broker:
 SetupBroker()
 
 
-@dramatiq.actor(time_limit=900000)
+@dramatiq.actor(time_limit=(30 * 60 * 100))
 def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> None:
     """Verify, and wait, for a transmission torrent to finish verification."""
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
@@ -70,7 +70,7 @@ def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> No
         ComputeXxh.send(tid, name, str(download_dir))
         return
 
-    TransmissionVerify.logger.error(f'Error checking {name=}" {tid=}, leaving as-is')
+    TransmissionVerify.logger.error(f'Error checking {name=} {tid=}, leaving as-is')
     return
 
 
