@@ -22,7 +22,6 @@ logger = tsmu.log.SetupInteractiveScriptLogging()
 try:
     from contextlib import chdir as contextlib_chdir
 except ImportError:
-    pass
     import os
     from contextlib import AbstractContextManager
 
@@ -154,7 +153,9 @@ def FindXXH(path: Path) -> Optional[Path]:
     return False
 
 
-def main(root_path: Path = Path("."), transmission: bool = True):
+def main(
+    root_path: Path = Path("."), transmission: bool = True, candidate_path: Path | None = None
+):
     logger.info(f"Scanning path={root_path.absolute()}")
     if transmission:
         tc = ConnectToTransmission()
@@ -167,10 +168,15 @@ def main(root_path: Path = Path("."), transmission: bool = True):
 
         dupe = Path(de.path).absolute().resolve()
 
-        candidate_paths = {
+        candidate_paths = [
             Path("../") / de.name,
             Path("../../") / de.name,
-        }
+        ]
+        if candidate_path:
+            candidate_path = candidate_path.absolute().resolve()
+            assert candidate_path.exists()
+            candidate_paths.insert(0, candidate_path / de.name)
+
         non_dupe = None
         for c in candidate_paths:
             # logger.info(f"Checking {str(c)}")
