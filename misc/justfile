@@ -14,20 +14,22 @@ a:
 b:
 	#!/usr/bin/env bash
 	cd {{invocation_directory()}}
-	~xjjk/Missing-Checksums.py -axxh | cut -d"/" -f1 | uniq | xargs -I{} ~xjjk/tsmu.py fn {} --ids | xargs -I{} transmission-remote -t {} --verify
+	# ~xjjk/Missing-Checksums.py -axxh | cut -d"/" -f1 | uniq | xargs -I{} tsmu fn {} --ids | xargs -I{} transmission-remote -t {} --verify
+	~xjjk/Missing-Checksums.py -axxh | cut -d"/" -f1 | uniq | xargs -I{} tsmu fn {} --ids | xargs -I{} tsmv -t {} --verbose
 
 # recreate xxh for torrents w/out them
 c:
 	#!/usr/bin/env bash
 	cd {{invocation_directory()}}
-	~xjjk/tsmu.py fp $(pwd) -c incomplete | sed '/^[[:blank:]]*$/ d' | rg -F '[]'
+	tsmu fp $(pwd) -c incomplete | sed '/^[[:blank:]]*$/ d' | rg -F '[]'
 	~xjjk/Missing-Checksums.py -axxh | cut -d"/" -f1 | uniq | xargs -n1 Create-SHA1-for-directory.sh | rg xxhsum | tee | sh
 
 # verify ALL torrents
 va:
 	#!/usr/bin/env bash
 	cd {{invocation_directory()}}
-	~/tsmu.py fp $(pwd) --ids | tr -d '\n' | xargs --delimiter=, -I{} echo transmission-remote -t {} --verify
+	# tsmu fp $(pwd) --ids | tr -d '\n' | xargs --delimiter=, -I{} echo transmission-remote -t {} --verify
+	tsmu fp $(pwd) --ids | tr -d '\n' | xargs --delimiter=, -I{} tsmv -t {} --verbose
 
 # verify sfv files
 vs:
@@ -36,4 +38,4 @@ vs:
 dupes:
 	#!/usr/bin/env bash
 	cd {{invocation_directory()}}
-	python3 ~/check-dupes.py
+	tsmu-dupes
