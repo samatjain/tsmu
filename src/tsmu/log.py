@@ -20,7 +20,12 @@ class MyRichHandler(RichHandler):
     """MyRichHandler."""
 
     emoji: bool = True
-    emoji_by_levels: Final[dict] = {"INFO": "🔈", "WARNING": "🔶", "ERROR": "🛑", "FATAL": "💀"}
+    emoji_by_levels: Final[dict[str, str]] = {
+        "INFO": "🔈",
+        "WARNING": "🔶",
+        "ERROR": "🛑",
+        "FATAL": "💀",
+    }
 
     def __init__(self, *args, emoji: bool = True, **kwargs):
         error_console = Console(stderr=True)
