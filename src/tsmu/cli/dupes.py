@@ -169,8 +169,9 @@ def main(
         dupe = Path(de.path).absolute().resolve()
 
         candidate_paths = [
-            Path("../") / de.name,
+            Path("../../../") / de.name,
             Path("../../") / de.name,
+            Path("../") / de.name,
         ]
         if candidate_path:
             candidate_path = candidate_path.absolute().resolve()
