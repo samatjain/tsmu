@@ -2,7 +2,7 @@ import logging
 import os
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Final
 
 from datetime import datetime
 from logging import LogRecord
@@ -19,8 +19,12 @@ install(show_locals=True)
 class MyRichHandler(RichHandler):
     """MyRichHandler."""
 
-    def __init__(self, *args, **kwargs):
+    emoji: bool = True
+    emoji_by_levels: Final[dict] = {"INFO": "🔈", "WARNING": "🔶", "ERROR": "🛑", "FATAL": "💀"}
+
+    def __init__(self, *args, emoji: bool = True, **kwargs):
         error_console = Console(stderr=True)
+        self.emoji = emoji
         super().__init__(*args, console=error_console, **kwargs)
 
     def render(
@@ -43,6 +47,13 @@ class MyRichHandler(RichHandler):
         time_format = None if self.formatter is None else self.formatter.datefmt
         log_time = datetime.fromtimestamp(record.created)
 
+        # Emoji for log ideas:
+        # • https://gist.github.com/tburry/d8a4abc16d78d3a604ad63ea00eaf1f6
+        # • https://github.com/paulospx/loglevel2emoji
+        if self.emoji:
+            emoji_by_levels = self.emoji_by_levels
+            level_str = level.plain.strip()
+            level = emoji_by_levels.get(level_str) if level_str in emoji_by_levels else level
         log_renderable = self._log_render(
             self.console,
             [message_renderable] if not traceback else [message_renderable, traceback],
@@ -82,6 +93,7 @@ DEFAULT_SILENCED_LOGGERS = frozenset({"paramiko.transport", "paramiko.transport.
 def SetupInteractiveScriptLogging(
     show_component: bool = False,
     show_path: bool = False,
+    emoji: bool = True,
     on_root_logger: bool = True,
     silence_loggers: set[str] | frozenset[str] = DEFAULT_SILENCED_LOGGERS,
 ) -> Any:
@@ -93,10 +105,12 @@ def SetupInteractiveScriptLogging(
 
     if show_component:
         rich_handler = MyRichComponentHandler(
-            rich_tracebacks=True, show_path=show_path, markup=True
+            rich_tracebacks=True, show_path=show_path, markup=True, emoji=emoji
         )
     else:
-        rich_handler = MyRichHandler(rich_tracebacks=True, show_path=show_path, markup=True)
+        rich_handler = MyRichHandler(
+            rich_tracebacks=True, show_path=show_path, markup=True, emoji=emoji
+        )
     rich_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
 
     if on_root_logger:
