@@ -113,7 +113,7 @@ def CacheTransmissionTorrents(
     out = dict()
     for t in tc.get_torrents():
         out[(t.name, t.downloadDir)] = {
-            "id": t.id,
+            # "id": t.id,
             "hash": t.hashString,
             "name": t.name,
             "downloadDir": t.downloadDir,
@@ -180,9 +180,11 @@ def main(
 
         non_dupe = None
         for c in candidate_paths:
+            c = c.absolute().resolve()
             # logger.info(f"Checking {str(c)}")
             if c.exists():
                 non_dupe = c
+                break
         if not non_dupe:
             logger.warning(f'Unable to find candidate dupe for "{de.name}"')
             continue
