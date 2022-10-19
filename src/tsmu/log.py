@@ -1,11 +1,9 @@
 import logging
 import os
-
-from pathlib import Path
-from typing import Any, Optional, Final
-
 from datetime import datetime
 from logging import LogRecord
+from pathlib import Path
+from typing import Any, Final, Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
