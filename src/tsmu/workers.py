@@ -57,6 +57,7 @@ def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> No
 
     if (
         "02-baked" in download_dir.parts
+        or "02-warm" in download_dir.parts
         or ".done" in download_dir.name
         or "dupes" in download_dir.parts
     ):

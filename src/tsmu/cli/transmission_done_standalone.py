@@ -65,6 +65,7 @@ def main():
 
         if (
             "02-baked" in current_download_path.parts
+            or "02-warm" in current_download_path.parts
             or ".done" in current_download_path.name
             or "dupes" in current_download_path.parts
         ):
