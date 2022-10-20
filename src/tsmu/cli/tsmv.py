@@ -4,15 +4,13 @@ import sys
 from pathlib import Path
 from pprint import pprint  # NOQA
 
-
 import click
 
-from tsmu.util import (
-    ConnectToTransmission,
-    ParseRanges,
-    TransmissionId,
-    VerifyTorrent,
-)
+# Logging
+import tsmu.log
+from tsmu.util import ConnectToTransmission, ParseRanges, TransmissionId, VerifyTorrent
+
+logger = tsmu.log.SetupInteractiveScriptLogging()
 
 
 @click.command()
@@ -23,7 +21,7 @@ def cli(tid: str, verbose: bool = False):
     any_fail = False
     for r in ParseRanges(tid):
         if verbose:
-            rv = VerifyTorrent(r, statusCb=print)
+            rv = VerifyTorrent(r, statusCb=logger.info)
             print()  # print explicit newline
         else:
             rv = VerifyTorrent(r)
