@@ -61,6 +61,18 @@ def CheckIfDownloadDirIsCorrect(
     return True
 
 
+def IsInWarmDirectory(download_dir: Path) -> bool:
+    """Are we in a warm or "done" directory, i.e. somewhere from where we are not moving?"""
+    if (
+        "02-baked" in download_dir.parts
+        or "02-warm" in download_dir.parts
+        or ".done" in download_dir.name
+        or "dupes" in download_dir.parts
+    ):
+        return True
+    return False
+
+
 def VerifyTorrent(
     tid: TransmissionId,
     tc: transmissionrpc.Client | None = None,

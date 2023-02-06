@@ -6,17 +6,17 @@ import subprocess
 from pathlib import Path
 
 import dramatiq
+import xdg.BaseDirectory
 from dramatiq.broker import Broker
 from dramatiq.brokers.redis import RedisBroker
 
 from tsmu.util import (
     CheckIfDownloadDirIsCorrect,
     ConnectToTransmission,
+    IsInWarmDirectory,
     TransmissionId,
     VerifyTorrent,
 )
-
-import xdg.BaseDirectory
 
 try:
     import tomllib
@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 REDIS_PASSWORD = None
 
 
-def LoadConfiguration():
+def LoadConfiguration() -> None:
     global REDIS_PASSWORD
     config_path = Path(xdg.BaseDirectory.load_first_config("tsmu")) / "tsmu.toml"
     with config_path.open("rb") as fp:
@@ -53,14 +53,9 @@ SetupBroker()
 def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> None:
     """Verify, and wait, for a transmission torrent to finish verification."""
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
-    TransmissionVerify.logger.info(f"Verifying {tid=} {name=} {download_dir=}")
+    TransmissionVerify.logger.info(f"Verifying {name=} {tid=} download_dir={str(download_dir)}")
 
-    if (
-        "02-baked" in download_dir.parts
-        or "02-warm" in download_dir.parts
-        or ".done" in download_dir.name
-        or "dupes" in download_dir.parts
-    ):
+    if IsInWarmDirectory(download_dir):
         TransmissionVerify.logger.info(f"Skipping {name=} {tid=}, is in a target directory already")
         return
 
@@ -102,14 +97,12 @@ def ComputeXxh(tid: TransmissionId, name: str, download_dir: Path) -> None:
 @dramatiq.actor
 def MoveTorrent(tid: TransmissionId, name: str, download_dir: Path, is_dupe: bool = False) -> None:
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
-    should_move = True
-    if (
-        "02-baked" in download_dir.parts
-        or ".done" in download_dir.name
-        or "dupes" in download_dir.parts
-    ):
-        should_move = False
+    should_move = not IsInWarmDirectory(download_dir)
+
     moved_download_path = download_dir
+
+    warm_dir = download_dir.parent / "02-warm"
+    use_warm_over_baked = warm_dir.exists()
 
     if should_move:
         # New "hot" format, from 01-hot -> $FOLDER_NAME
@@ -140,11 +133,11 @@ def MoveTorrent(tid: TransmissionId, name: str, download_dir: Path, is_dupe: boo
 
         moved_download_path.mkdir(parents=True, exist_ok=True)
 
-        MoveTorrent.logger.info(f"Will move {name=} from={download_dir} to={moved_download_path}")
-
         tc = ConnectToTransmission()
         if os.stat(moved_download_path).st_dev == os.stat(download_dir).st_dev:
-            MoveTorrent.logger.info(f'Moving {name=} to dst="{moved_download_path}"')
+            MoveTorrent.logger.info(
+                f'Moving {name=} from="{str(download_dir)}" to="{str(moved_download_path)}"'
+            )
             tc.move_torrent_data(tid, str(moved_download_path))
             try:
                 target_xxh.rename(moved_target_xxh)
