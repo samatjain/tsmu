@@ -70,7 +70,7 @@ def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> No
     return
 
 
-@dramatiq.actor(time_limit=900000)
+@dramatiq.actor(time_limit=(6 * 60 * 60 * 100))
 def ComputeXxh(tid: TransmissionId, name: str, download_dir: Path) -> None:
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
 
