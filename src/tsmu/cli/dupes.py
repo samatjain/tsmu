@@ -156,12 +156,18 @@ def FindXXH(path: Path) -> Optional[Path]:
 def main(
     root_path: Path = Path("."), transmission: bool = True, candidate_path: Path | None = None
 ):
+    root_path = root_path.absolute().resolve()
     logger.info(f"Scanning path={root_path.absolute()}")
+    if candidate_path:
+        candidate_path = candidate_path.absolute().resolve()
+        logger.info(f"Also checking path {candidate_path} for dupe candidates")
+        assert candidate_path.exists()
     if transmission:
         tc = ConnectToTransmission()
         torrentsByName = CacheTransmissionTorrents(tc)
     else:
         tc, torrentsByName = None, dict()
+
     for de in os.scandir(root_path):
         if not de.is_dir():
             continue
@@ -174,8 +180,6 @@ def main(
             Path("../") / de.name,
         ]
         if candidate_path:
-            candidate_path = candidate_path.absolute().resolve()
-            assert candidate_path.exists()
             candidate_paths.insert(0, candidate_path / de.name)
 
         non_dupe = None
