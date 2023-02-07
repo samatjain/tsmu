@@ -66,7 +66,7 @@ def TransmissionVerify(tid: TransmissionId, name: str, download_dir: Path) -> No
         ComputeXxh.send(tid, name, str(download_dir))
         return
 
-    TransmissionVerify.logger.error(f'Error checking {name=} {tid=}, leaving as-is')
+    TransmissionVerify.logger.error(f"Error checking {name=} {tid=}, leaving as-is")
     return
 
 
@@ -75,10 +75,12 @@ def ComputeXxh(tid: TransmissionId, name: str, download_dir: Path) -> None:
     download_dir = Path(download_dir) if not isinstance(download_dir, Path) else download_dir
 
     target_dir = download_dir / name
-    ComputeXxh.logger.info(f"Computing checksums for {name=} {target_dir=}")
+    ComputeXxh.logger.info(f"Computing checksums for {name=} target_dir={str(target_dir)}")
     if not target_dir.exists():
         if not CheckIfDownloadDirIsCorrect(tid, download_dir):
-            ComputeXxh.logger.error(f"Something wrong w/ {name=} {download_dir=}, leaving as-is")
+            ComputeXxh.logger.error(
+                f"Something wrong w/ {name=} {tid=} {download_dir=}, leaving as-is"
+            )
         else:
             ComputeXxh.logger.error(f"{target_dir=} does not exist? Reverifying")
             TransmissionVerify.send(tid, name, download_dir)
