@@ -108,11 +108,11 @@ import functools
 @functools.cache
 def CacheTransmissionTorrents(
     tc: transmissionrpc.Client,
-) -> dict[tuple[str, str], TorrentInformation]:
+) -> dict[tuple[str, Path], TorrentInformation]:
     logger.info("Getting torrent information")
     out = dict()
     for t in tc.get_torrents():
-        out[(t.name, t.downloadDir)] = {
+        out[(t.name, Path(t.downloadDir))] = {
             # "id": t.id,
             "hash": t.hashString,
             "name": t.name,
@@ -301,7 +301,7 @@ def main(
                 # this is wrong, we don't want by name, we want by name and downloadDir
                 ti: TorrentInformation | None = None
                 try:
-                    ti = torrentsByName[(dupe.name, str(dupe.parent))]
+                    ti = torrentsByName[(dupe.name, dupe.parent)]
                 except KeyError as e:
                     logger.warning(f"Unable to find dupe torrent in client: {e}. Removing anyway")
                 if ti:
