@@ -310,6 +310,8 @@ def main(
             # logger.info(f"Removing {dupe} and {dupe_xxh}")
             rm_target = "%s{,%s}" % (dupe.name, dupe_xxh.name.replace(dupe.name, ""))
             logger.info(f"Removing {dupe.parent}/{rm_target}")
+            # TODO: throw exception rather than relying on assert
+            assert dupe.resolve() != non_dupe.resolve()
             shutil.rmtree(dupe)
             dupe_xxh.unlink()
         else:
