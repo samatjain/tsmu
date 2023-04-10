@@ -677,7 +677,7 @@ Readding hash={hash},
 
         if not dry_run:
             while True:
-                if os.getloadavg()[0] > 2.0:
+                if os.getloadavg()[0] > 3.0:
                     print("Load is too high, waiting…")
                     time.sleep(5)
                     continue
